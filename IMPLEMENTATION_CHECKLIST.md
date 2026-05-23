@@ -4,7 +4,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 
 ## Current Next Step
 
-- [ ] Implement the backend foundation for first-run setup.
+- [x] Implement the backend foundation for first-run setup.
 
 This means the next code milestone should add a real Axum API server, configuration loading, PostgreSQL connection, migrations, and the first setup endpoints:
 
@@ -32,21 +32,21 @@ This comes before uploads, SDKs, image optimization, FTP, or SFTP because FileBa
 
 ## Phase 2: First-Run Setup And Admin Auth
 
-- [ ] Implement `GET /setup/status`.
-- [ ] Return whether setup is required based on whether any admin user exists.
-- [ ] Implement `POST /setup/initialize`.
-- [ ] Create the first admin user.
-- [ ] Create the default project.
-- [ ] Create the first storage connection from setup input.
-- [ ] Create a default upload preset.
-- [ ] Hash admin passwords securely.
-- [ ] Prevent setup initialization after the first admin exists.
-- [ ] Implement login.
-- [ ] Implement logout/session invalidation behavior.
-- [ ] Implement `GET /auth/me`.
-- [ ] Add JWT or secure session handling.
-- [ ] Add auth middleware for protected routes.
-- [ ] Disable public registration by default after first setup.
+- [x] Implement `GET /setup/status`.
+- [x] Return whether setup is required based on whether any admin user exists.
+- [x] Implement `POST /setup/initialize`.
+- [x] Create the first admin user.
+- [x] Create the default project.
+- [x] Create the first storage connection from setup input.
+- [x] Create a default upload preset.
+- [x] Hash admin passwords securely.
+- [x] Prevent setup initialization after the first admin exists.
+- [x] Implement login.
+- [x] Implement logout/session invalidation behavior.
+- [x] Implement `GET /auth/me`.
+- [x] Add JWT or secure session handling.
+- [x] Add auth middleware for protected routes.
+- [x] Disable public registration by default after first setup.
 
 ## Phase 3: Dashboard Onboarding UI
 

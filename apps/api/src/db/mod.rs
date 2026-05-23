@@ -1,3 +1,5 @@
+pub mod redis;
+
 use sea_orm::{ConnectOptions, Database, DatabaseConnection};
 use std::time::Duration;
 
