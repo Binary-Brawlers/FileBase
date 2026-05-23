@@ -6,3 +6,5 @@ pub mod upload_log;
 pub mod upload_preset;
 pub mod upload_session;
 pub mod user;
+pub mod webhook;
+pub mod webhook_delivery_log;

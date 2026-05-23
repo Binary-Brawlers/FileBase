@@ -12,7 +12,7 @@ use serde_json::json;
 use crate::entities::{file, project, storage_connection, upload_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
-use crate::services::storage_factory;
+use crate::services::{storage_factory, webhooks};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -169,7 +169,23 @@ pub async fn delete(
         .delete(&model.path)
         .await
         .map_err(|e| ApiError::Internal(anyhow::anyhow!(e)))?;
-    file::Entity::delete_by_id(model.id).exec(&state.db).await?;
+    file::Entity::delete_by_id(model.id.clone())
+        .exec(&state.db)
+        .await?;
+    webhooks::emit_file_event(
+        &state,
+        &model.project_id,
+        Some(&model.id),
+        "file.deleted",
+        json!({
+            "fileId": model.id,
+            "path": model.path,
+            "url": model.url,
+            "mimeType": model.mime_type,
+            "size": model.size,
+        }),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

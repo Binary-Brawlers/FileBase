@@ -224,6 +224,50 @@ export type UploadLog = {
   created_at: string;
 };
 
+export type WebhookEvent =
+  | "file.uploaded"
+  | "file.deleted"
+  | "file.duplicate_detected"
+  | "file.optimized"
+  | "file.failed";
+
+export type Webhook = {
+  id: string;
+  project_id: string;
+  url: string;
+  events: WebhookEvent[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreatedWebhook = Webhook & { signing_secret: string };
+
+export type CreateWebhookRequest = {
+  project_id: string;
+  url: string;
+  events: WebhookEvent[];
+  secret?: string;
+  is_active?: boolean;
+};
+
+export type UpdateWebhookRequest = Partial<Omit<CreateWebhookRequest, "project_id">>;
+
+export type WebhookDeliveryLog = {
+  id: string;
+  webhook_id: string;
+  project_id: string;
+  file_id: string | null;
+  event: string;
+  status: string;
+  attempt: number;
+  status_code: number | null;
+  error: string | null;
+  request: Record<string, unknown>;
+  response: Record<string, unknown>;
+  created_at: string;
+};
+
 export type FileFilters = {
   project_id?: string;
   search?: string;
@@ -318,4 +362,17 @@ export const api = {
     request<void>(`/files/${id}`, { method: "DELETE", token }),
   getFileLogs: (id: string, token?: string | null) =>
     request<UploadLog[]>(`/files/${id}/logs`, { token }),
+  listWebhooks: (token?: string | null) =>
+    request<Webhook[]>("/webhooks", { token }),
+  createWebhook: (body: CreateWebhookRequest, token?: string | null) =>
+    request<CreatedWebhook>("/webhooks", { method: "POST", body, token }),
+  updateWebhook: (
+    id: string,
+    body: UpdateWebhookRequest,
+    token?: string | null,
+  ) => request<Webhook>(`/webhooks/${id}`, { method: "PATCH", body, token }),
+  deleteWebhook: (id: string, token?: string | null) =>
+    request<void>(`/webhooks/${id}`, { method: "DELETE", token }),
+  getWebhookDeliveries: (id: string, token?: string | null) =>
+    request<WebhookDeliveryLog[]>(`/webhooks/${id}/deliveries`, { token }),
 };

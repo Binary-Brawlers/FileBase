@@ -7,6 +7,7 @@ pub mod setup;
 pub mod storage_connections;
 pub mod upload_presets;
 pub mod uploads;
+pub mod webhooks;
 
 use axum::{
     routing::{get, patch, post},
@@ -64,6 +65,14 @@ pub fn router() -> Router<AppState> {
         .route("/files", get(files::list))
         .route("/files/:id", get(files::get).delete(files::delete))
         .route("/files/:id/logs", get(files::logs))
+        .route("/webhooks", get(webhooks::list).post(webhooks::create))
+        .route(
+            "/webhooks/:id",
+            get(webhooks::get)
+                .patch(webhooks::update)
+                .delete(webhooks::delete),
+        )
+        .route("/webhooks/:id/deliveries", get(webhooks::deliveries))
 }
 
 async fn root() -> &'static str {

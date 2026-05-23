@@ -25,7 +25,7 @@ use crate::entities::{
     api_key, file, storage_connection, upload_log, upload_preset, upload_session,
 };
 use crate::error::{ApiError, ApiResult};
-use crate::services::storage_factory;
+use crate::services::{storage_factory, webhooks};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -187,7 +187,20 @@ pub async fn direct_upload(
     };
     let result = process_upload(&state, &preset, &input, None).await;
     cleanup_upload_temp(&input).await?;
-    let result = result?;
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => {
+            webhooks::emit_file_event(
+                &state,
+                &preset.project_id,
+                None,
+                "file.failed",
+                json!({ "filename": input.filename, "error": error.to_string() }),
+            )
+            .await?;
+            return Err(error);
+        }
+    };
     Ok((StatusCode::CREATED, Json(json!({ "data": result }))).into_response())
 }
 
@@ -223,7 +236,20 @@ pub async fn session_upload(
     let input = read_multipart(multipart, state.config.max_upload_size).await?;
     let result = process_upload(&state, &preset, &input, Some(session.clone())).await;
     cleanup_upload_temp(&input).await?;
-    let result = result?;
+    let result = match result {
+        Ok(result) => result,
+        Err(error) => {
+            webhooks::emit_file_event(
+                &state,
+                &preset.project_id,
+                None,
+                "file.failed",
+                json!({ "filename": input.filename, "sessionId": session.id, "error": error.to_string() }),
+            )
+            .await?;
+            return Err(error);
+        }
+    };
 
     let mut active = session.into_active_model();
     active.used_at = Set(Some(Utc::now().into()));
@@ -340,6 +366,14 @@ async fn process_upload(
                     json!({ "duplicateOfFileId": existing.id }),
                 )
                 .await?;
+                webhooks::emit_file_event(
+                    state,
+                    &preset.project_id,
+                    Some(&existing.id),
+                    "file.duplicate_detected",
+                    json!({ "duplicateOfFileId": existing.id.clone(), "strategy": "return_existing" }),
+                )
+                .await?;
                 return Ok(FileView::from(existing));
             }
             "reject_duplicate" => {
@@ -351,6 +385,14 @@ async fn process_upload(
                     "rejected",
                     Some("duplicate file rejected"),
                     json!({ "duplicateOfFileId": existing.id }),
+                )
+                .await?;
+                webhooks::emit_file_event(
+                    state,
+                    &preset.project_id,
+                    Some(&existing.id),
+                    "file.duplicate_detected",
+                    json!({ "duplicateOfFileId": existing.id.clone(), "strategy": "reject_duplicate" }),
                 )
                 .await?;
                 return Err(ApiError::Conflict(
@@ -443,7 +485,7 @@ async fn process_upload(
         metadata_json: Set(json!({
             "presetId": preset.id,
             "sessionId": session.map(|s| s.id),
-            "transformations": transformation_metadata,
+            "transformations": transformation_metadata.clone(),
             "original": original_metadata,
             "thumbnail": thumbnail_metadata
         })),
@@ -462,6 +504,35 @@ async fn process_upload(
         json!({ "path": inserted.path, "url": inserted.url }),
     )
     .await?;
+    webhooks::emit_file_event(
+        state,
+        &preset.project_id,
+        Some(&inserted.id),
+        "file.uploaded",
+        json!({
+            "fileId": inserted.id.clone(),
+            "path": inserted.path.clone(),
+            "url": inserted.url.clone(),
+            "mimeType": inserted.mime_type.clone(),
+            "size": inserted.size,
+        }),
+    )
+    .await?;
+    if transformation_metadata != json!({}) {
+        webhooks::emit_file_event(
+            state,
+            &preset.project_id,
+            Some(&inserted.id),
+            "file.optimized",
+            json!({
+                "fileId": inserted.id.clone(),
+                "path": inserted.path.clone(),
+                "url": inserted.url.clone(),
+                "transformations": transformation_metadata.clone(),
+            }),
+        )
+        .await?;
+    }
     Ok(FileView::from(inserted))
 }
 

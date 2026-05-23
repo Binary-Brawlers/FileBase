@@ -8,7 +8,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 
-Next code milestone is Phase 10 webhooks, then Phase 11 SDKs.
+Next code milestone is Phase 11 SDKs.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -144,17 +144,17 @@ Next code milestone is Phase 10 webhooks, then Phase 11 SDKs.
 
 ## Phase 10: Webhooks
 
-- [ ] Add webhook CRUD endpoints.
-- [ ] Add webhook event model.
-- [ ] Send `file.uploaded` event.
-- [ ] Send `file.deleted` event.
-- [ ] Send `file.duplicate_detected` event.
-- [ ] Send `file.optimized` event.
-- [ ] Send `file.failed` event.
-- [ ] Sign webhook payloads with HMAC.
-- [ ] Add webhook retry behavior.
-- [ ] Add webhook delivery logs.
-- [ ] Add dashboard webhook management.
+- [x] Add webhook CRUD endpoints.
+- [x] Add webhook event model.
+- [x] Send `file.uploaded` event.
+- [x] Send `file.deleted` event.
+- [x] Send `file.duplicate_detected` event.
+- [x] Send `file.optimized` event.
+- [x] Send `file.failed` event.
+- [x] Sign webhook payloads with HMAC.
+- [x] Add webhook retry behavior.
+- [x] Add webhook delivery logs.
+- [x] Add dashboard webhook management.
 
 ## Phase 11: SDKs
 

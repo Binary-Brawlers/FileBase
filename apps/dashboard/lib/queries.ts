@@ -6,12 +6,14 @@ import {
   type CreateApiKeyRequest,
   type CreateProjectRequest,
   type CreateStorageConnectionRequest,
+  type CreateWebhookRequest,
   type CreateUploadPresetRequest,
   type FileFilters,
   type InitializeRequest,
   type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
   type UpdateUploadPresetRequest,
+  type UpdateWebhookRequest,
 } from "./api";
 import { getToken } from "./auth";
 
@@ -24,6 +26,8 @@ export const queryKeys = {
   apiKeys: ["api-keys"] as const,
   files: (filters?: FileFilters) => ["files", filters ?? {}] as const,
   fileLogs: (id?: string | null) => ["files", id, "logs"] as const,
+  webhooks: ["webhooks"] as const,
+  webhookDeliveries: (id?: string | null) => ["webhooks", id, "deliveries"] as const,
 };
 
 export function useSetupStatus() {
@@ -220,5 +224,45 @@ export function useDeleteFile() {
   return useMutation({
     mutationFn: (id: string) => api.deleteFile(id, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["files"] }),
+  });
+}
+
+export function useWebhooks() {
+  return useQuery({
+    queryKey: queryKeys.webhooks,
+    queryFn: () => api.listWebhooks(getToken()),
+  });
+}
+
+export function useCreateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateWebhookRequest) => api.createWebhook(body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.webhooks }),
+  });
+}
+
+export function useUpdateWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateWebhookRequest }) =>
+      api.updateWebhook(id, body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.webhooks }),
+  });
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteWebhook(id, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.webhooks }),
+  });
+}
+
+export function useWebhookDeliveries(id?: string | null) {
+  return useQuery({
+    queryKey: queryKeys.webhookDeliveries(id),
+    queryFn: () => api.getWebhookDeliveries(id!, getToken()),
+    enabled: !!id,
   });
 }

@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Boxes,
   Settings,
+  Webhook,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { key: "/dashboard/presets", label: "Upload presets", icon: Settings },
   { key: "/dashboard/storage", label: "Storage connections", icon: Database },
   { key: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
+  { key: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
