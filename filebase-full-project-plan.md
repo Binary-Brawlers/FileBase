@@ -268,9 +268,17 @@ Add hosted SaaS later.
 
 ## 10. Recommended MVP Deployment Model
 
-The MVP should focus on self-hosted deployment using Docker Compose.
+The MVP should focus on self-hosted deployment using Docker Compose, wrapped by a simple one-command installer similar to Coolify.
 
-The developer should be able to clone the repository, configure `.env`, and run:
+The recommended public installation experience should be:
+
+```bash
+curl -fsSL https://get.filebase.dev/install.sh | sudo bash
+```
+
+The installer should prepare the server, generate secure defaults, write the deployment files, start FileBase, and print the URL where the user can finish setup.
+
+Manual deployment should still be supported for developers who prefer to clone the repository, configure `.env`, and run:
 
 ```bash
 docker compose up -d
@@ -296,6 +304,72 @@ docker-compose.yml
 ├── postgres
 └── redis
 ```
+
+### 10.1 First-Run Onboarding
+
+After installation, FileBase should run on a known port and guide the user through setup in the browser.
+
+Example:
+
+```text
+http://SERVER_IP:8080
+```
+
+On first visit, if no admin user exists, FileBase should show an onboarding flow instead of the normal login screen.
+
+First-run setup should include:
+
+```text
+1. Create the first admin account.
+2. Create the default project.
+3. Choose the initial upload behavior.
+4. Configure the first storage connection.
+5. Create a default upload preset.
+6. Show the API URL, dashboard URL, and SDK integration snippet.
+```
+
+Initial upload behavior options:
+
+```text
+- Local server folder
+- FTP server
+- SFTP server
+```
+
+The first choice should not lock the user in. FileBase should support multiple storage connections per project so users can add, test, switch, or use additional storage types later from the dashboard.
+
+The onboarding state should be derived from the database, not a temporary file. If no users exist, onboarding is required. Once the first admin user exists, public registration should be disabled by default unless explicitly enabled.
+
+### 10.2 Installer Responsibilities
+
+The install script should be production-oriented and safe by default.
+
+It should:
+
+```text
+- Check OS compatibility.
+- Require root or sudo privileges.
+- Install Docker if missing.
+- Install Docker Compose if missing.
+- Create /opt/filebase.
+- Generate .env with secure JWT_SECRET and ENCRYPTION_KEY values.
+- Write docker-compose.yml or download the release compose file.
+- Pull the latest FileBase images.
+- Start the services.
+- Print the first-run setup URL.
+```
+
+Recommended server paths:
+
+```text
+/opt/filebase
+/opt/filebase/.env
+/opt/filebase/docker-compose.yml
+/opt/filebase/data/postgres
+/opt/filebase/data/uploads
+```
+
+The installer should not ask users to manually edit `.env` before first launch. Storage-specific configuration should happen in the onboarding UI and dashboard.
 
 ---
 
@@ -915,12 +989,12 @@ Example:
 ```ts
 import { FileBase } from "@filebase/node";
 
-const openUpload = new FileBase({
+const fileBase = new FileBase({
   apiKey: process.env.FILEBASE_API_KEY,
   gatewayUrl: process.env.FILEBASE_GATEWAY_URL
 });
 
-const session = await openUpload.createUploadSession({
+const session = await fileBase.createUploadSession({
   preset: "profile_images"
 });
 ```
@@ -934,6 +1008,7 @@ The Next.js dashboard should allow users to manage the platform.
 MVP dashboard features:
 
 ```text
+- First-run onboarding
 - Login
 - Project setup
 - Storage connection setup
@@ -969,6 +1044,8 @@ Future dashboard features:
 ### 28.1 Auth
 
 ```http
+GET /setup/status
+POST /setup/initialize
 POST /auth/register
 POST /auth/login
 GET /auth/me
@@ -1368,11 +1445,14 @@ The MVP should be focused and practical.
 ### 34.1 MVP Features
 
 ```text
+- One-command self-hosted installer
 - Rust API using Axum
 - Rust worker
 - Next.js dashboard
 - PostgreSQL database
 - Redis queue
+- First-run admin registration
+- Guided storage onboarding
 - User authentication
 - Project creation
 - API key creation
@@ -1424,7 +1504,9 @@ Make FTP/SFTP/local uploads safer and developer-friendly.
 Features:
 
 ```text
+- One-command installer
 - Self-hosted Docker deployment
+- First-run onboarding
 - Rust API
 - Next.js dashboard
 - Local/FTP/SFTP storage
@@ -1593,12 +1675,15 @@ volumes:
 The ideal developer experience should be:
 
 ```text
-1. Deploy FileBase.
-2. Add storage credentials.
-3. Create an upload preset.
-4. Install SDK.
-5. Upload files securely from frontend.
-6. Receive final public URL.
+1. Install FileBase with one command.
+2. Open the setup URL in the browser.
+3. Register the first admin account.
+4. Choose local, FTP, or SFTP as the initial upload behavior.
+5. Add storage credentials through the onboarding UI.
+6. Create or accept the default upload preset.
+7. Install SDK.
+8. Upload files securely from frontend.
+9. Receive final public URL.
 ```
 
 Example:
@@ -1653,8 +1738,11 @@ It is broad enough to support more than FTP in the future.
 
 The project is successful if developers can:
 
-- Deploy it with Docker Compose.
+- Install it with one command on a server.
+- Complete first-run setup in the browser.
+- Deploy it with Docker Compose manually if preferred.
 - Connect FTP/SFTP/local storage easily.
+- Add multiple storage connections later from the dashboard.
 - Upload files without overwriting existing files.
 - Upload securely from React and React Native.
 - Get file URLs automatically.
