@@ -23,12 +23,12 @@ This comes before uploads, SDKs, image optimization, FTP, or SFTP because FileBa
 - [x] Add PostgreSQL database connection pooling.
 - [x] Add Redis connection configuration.
 - [x] Add database migration tooling.
-- [ ] Create initial migrations for users, projects, storage connections, upload presets, API keys, upload sessions, files, webhooks, and upload logs.
-- [ ] Add consistent API response and error handling types.
-- [ ] Add tracing/logging setup.
-- [ ] Add request ID or correlation ID middleware.
-- [ ] Add CORS configuration for dashboard and SDK usage.
-- [ ] Update Docker files once the API runs as a real service.
+- [x] Create initial migrations for users, projects, storage connections, upload presets, API keys, upload sessions, files, webhooks, and upload logs.
+- [x] Add consistent API response and error handling types.
+- [x] Add tracing/logging setup.
+- [x] Add request ID or correlation ID middleware.
+- [x] Add CORS configuration for dashboard and SDK usage.
+- [x] Update Docker files once the API runs as a real service.
 
 ## Phase 2: First-Run Setup And Admin Auth
 

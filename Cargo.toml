@@ -31,3 +31,6 @@ dotenvy = "0.15"
 redis = { version = "0.27", features = ["tokio-comp"] }
 sea-orm = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls", "macros"] }
 sea-orm-migration = { version = "1.1", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["trace", "cors", "request-id", "util"] }
+uuid = { version = "1", features = ["v4"] }
