@@ -5,15 +5,10 @@ This checklist turns the full project plan into an ordered implementation path. 
 ## Current Next Step
 
 - [x] Implement the backend foundation for first-run setup.
+- [x] Implement the dashboard onboarding UI (Phase 3).
+- [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 
-This means the next code milestone should add a real Axum API server, configuration loading, PostgreSQL connection, migrations, and the first setup endpoints:
-
-```http
-GET /setup/status
-POST /setup/initialize
-```
-
-This comes before uploads, SDKs, image optimization, FTP, or SFTP because FileBase needs a reliable install and onboarding path first.
+Next code milestone is Phase 5: project, upload-preset, and API-key CRUD endpoints plus their dashboard pages.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -50,32 +45,32 @@ This comes before uploads, SDKs, image optimization, FTP, or SFTP because FileBa
 
 ## Phase 3: Dashboard Onboarding UI
 
-- [ ] Replace the placeholder dashboard page with an app shell.
-- [ ] Add API client helpers for dashboard-to-API communication.
-- [ ] Add first-run setup detection.
-- [ ] Show onboarding when setup is required.
-- [ ] Build admin registration step.
-- [ ] Build initial upload behavior selection step.
-- [ ] Build local storage configuration form.
-- [ ] Build FTP storage configuration form.
-- [ ] Build SFTP storage configuration form.
-- [ ] Build default upload preset step.
-- [ ] Build setup completion screen with API URL, dashboard URL, and SDK snippet.
-- [ ] Add login screen for already configured installs.
-- [ ] Add authenticated dashboard layout.
+- [x] Replace the placeholder dashboard page with an app shell.
+- [x] Add API client helpers for dashboard-to-API communication.
+- [x] Add first-run setup detection.
+- [x] Show onboarding when setup is required.
+- [x] Build admin registration step.
+- [x] Build initial upload behavior selection step.
+- [x] Build local storage configuration form.
+- [x] Build FTP storage configuration form.
+- [x] Build SFTP storage configuration form.
+- [x] Build default upload preset step.
+- [x] Build setup completion screen with API URL, dashboard URL, and SDK snippet.
+- [x] Add login screen for already configured installs.
+- [x] Add authenticated dashboard layout.
 
 ## Phase 4: Storage Connections
 
-- [ ] Finalize storage adapter trait and shared types.
-- [ ] Implement local filesystem storage adapter.
-- [ ] Implement FTP storage adapter.
-- [ ] Implement SFTP storage adapter.
-- [ ] Encrypt stored FTP/SFTP credentials with `ENCRYPTION_KEY`.
-- [ ] Add storage connection CRUD endpoints.
-- [ ] Add `POST /storage-connections/:id/test`.
-- [ ] Add dashboard pages for managing storage connections.
-- [ ] Allow multiple storage connections per project.
-- [ ] Allow users to switch or select storage connections for presets.
+- [x] Finalize storage adapter trait and shared types.
+- [x] Implement local filesystem storage adapter.
+- [x] Implement FTP storage adapter.
+- [x] Implement SFTP storage adapter.
+- [x] Encrypt stored FTP/SFTP credentials with `ENCRYPTION_KEY`.
+- [x] Add storage connection CRUD endpoints.
+- [x] Add `POST /storage-connections/:id/test`.
+- [x] Add dashboard pages for managing storage connections.
+- [x] Allow multiple storage connections per project.
+- [x] Allow users to switch or select storage connections for presets.
 
 ## Phase 5: Projects, Presets, And API Keys
 

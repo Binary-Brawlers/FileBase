@@ -151,7 +151,7 @@ pub async fn initialize(
     )?;
     sc.insert(&state.db).await?;
 
-    let preset_model = build_preset(payload.preset, &project_id, &preset_id, now)?;
+    let preset_model = build_preset(payload.preset, &project_id, &preset_id, &storage_id, now)?;
     preset_model.insert(&state.db).await?;
 
     Ok(Json(json!({
@@ -279,6 +279,7 @@ fn build_preset(
     input: Option<PresetInput>,
     project_id: &str,
     preset_id: &str,
+    storage_connection_id: &str,
     now: sea_orm::prelude::ChronoDateTimeWithTimeZone,
 ) -> Result<upload_preset::ActiveModel, ApiError> {
     let input = input.unwrap_or(PresetInput {
@@ -307,6 +308,7 @@ fn build_preset(
     Ok(upload_preset::ActiveModel {
         id: Set(preset_id.to_string()),
         project_id: Set(project_id.to_string()),
+        storage_connection_id: Set(Some(storage_connection_id.to_string())),
         name: Set(input.name.unwrap_or_else(|| "default".into())),
         folder: Set(input.folder.unwrap_or_else(|| "uploads".into())),
         allowed_mime_types: Set(json!(input.allowed_mime_types.unwrap_or_default())),

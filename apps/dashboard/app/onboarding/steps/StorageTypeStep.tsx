@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import { Globe, HardDrive, ShieldCheck, type LucideIcon } from "lucide-react";
 
 export type StorageType = "local" | "ftp" | "sftp";
 
@@ -15,25 +16,25 @@ const OPTIONS: {
   id: StorageType;
   title: string;
   desc: string;
-  icon: string;
+  icon: LucideIcon;
 }[] = [
   {
     id: "local",
     title: "Local folder",
     desc: "Store files on this server. Fastest, no extra setup.",
-    icon: "💾",
+    icon: HardDrive,
   },
   {
     id: "ftp",
     title: "FTP server",
     desc: "Upload to an existing FTP host like cPanel or shared hosting.",
-    icon: "🌐",
+    icon: Globe,
   },
   {
     id: "sftp",
     title: "SFTP server",
     desc: "Upload over SSH to a VPS or managed server.",
-    icon: "🔐",
+    icon: ShieldCheck,
   },
 ];
 
@@ -43,6 +44,7 @@ export function StorageTypeStep({ value, onChange, onBack, onNext }: Props) {
       <div className="grid gap-3">
         {OPTIONS.map((opt) => {
           const selected = value === opt.id;
+          const Icon = opt.icon;
           return (
             <button
               key={opt.id}
@@ -57,12 +59,14 @@ export function StorageTypeStep({ value, onChange, onBack, onNext }: Props) {
             >
               <span
                 className={
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg " +
-                  (selected ? "bg-accent/15" : "bg-default-100")
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg " +
+                  (selected
+                    ? "bg-accent/15 text-accent"
+                    : "bg-default-100 text-default-700")
                 }
                 aria-hidden
               >
-                {opt.icon}
+                <Icon className="h-5 w-5" />
               </span>
               <div className="flex flex-col gap-0.5 min-w-0 flex-1">
                 <p className="font-medium">{opt.title}</p>

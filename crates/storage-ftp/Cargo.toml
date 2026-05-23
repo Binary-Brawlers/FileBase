@@ -7,4 +7,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+async-trait.workspace = true
 filebase-storage = { path = "../storage" }
+suppaftp = "6"
+tokio = { workspace = true, features = ["rt"] }

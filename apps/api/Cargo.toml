@@ -30,3 +30,7 @@ base64.workspace = true
 rand.workspace = true
 filebase-core = { path = "../../crates/core" }
 filebase-migration = { path = "../../crates/migration" }
+filebase-storage = { path = "../../crates/storage" }
+filebase-storage-local = { path = "../../crates/storage-local" }
+filebase-storage-ftp = { path = "../../crates/storage-ftp" }
+filebase-storage-sftp = { path = "../../crates/storage-sftp" }

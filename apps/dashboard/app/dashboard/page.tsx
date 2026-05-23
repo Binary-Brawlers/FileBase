@@ -1,6 +1,14 @@
 "use client";
 
 import { Card } from "@heroui/react";
+import {
+  Database,
+  FolderOpen,
+  HardDrive,
+  KeyRound,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useMe } from "../../lib/queries";
 import { getToken } from "../../lib/auth";
@@ -10,35 +18,35 @@ type Stat = {
   label: string;
   value: string;
   hint: string;
-  icon: string;
+  icon: LucideIcon;
   tone: "accent" | "primary" | "success" | "warning";
 };
 
 const STATS: Stat[] = [
-  { label: "Files", value: "—", hint: "Uploads tracked", icon: "🗂", tone: "accent" },
-  { label: "Storage used", value: "—", hint: "Across all backends", icon: "📦", tone: "primary" },
-  { label: "Presets", value: "—", hint: "Reusable upload rules", icon: "⚙", tone: "success" },
-  { label: "API keys", value: "—", hint: "Active tokens", icon: "🔑", tone: "warning" },
+  { label: "Files", value: "—", hint: "Uploads tracked", icon: FolderOpen, tone: "accent" },
+  { label: "Storage used", value: "—", hint: "Across all backends", icon: HardDrive, tone: "primary" },
+  { label: "Presets", value: "—", hint: "Reusable upload rules", icon: Settings, tone: "success" },
+  { label: "API keys", value: "—", hint: "Active tokens", icon: KeyRound, tone: "warning" },
 ];
 
-const QUICK_LINKS: { href: string; title: string; desc: string; icon: string }[] = [
+const QUICK_LINKS: { href: string; title: string; desc: string; icon: LucideIcon }[] = [
   {
     href: "/dashboard/presets",
     title: "Upload presets",
     desc: "Define folders, size limits, and duplicate handling.",
-    icon: "⚙",
+    icon: Settings,
   },
   {
     href: "/dashboard/storage",
     title: "Storage connections",
     desc: "Add or rotate Local, FTP, and SFTP backends.",
-    icon: "🗄",
+    icon: Database,
   },
   {
     href: "/dashboard/api-keys",
     title: "API keys",
     desc: "Issue live or test keys for your apps.",
-    icon: "🔑",
+    icon: KeyRound,
   },
 ];
 
@@ -51,7 +59,7 @@ export default function DashboardHome() {
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">
-          Welcome back{me.data?.name ? `, ${me.data.name.split(" ")[0]}` : ""} 👋
+          Welcome back{me.data?.name ? `, ${me.data.name.split(" ")[0]}` : ""}
         </h1>
         <p className="text-default-500">
           Here&apos;s a snapshot of your FileBase install.
@@ -73,22 +81,25 @@ export default function DashboardHome() {
             </Card.Description>
           </Card.Header>
           <Card.Content className="grid gap-3 sm:grid-cols-3">
-            {QUICK_LINKS.map((q) => (
-              <Link
-                key={q.href}
-                href={q.href}
-                className="group flex flex-col gap-2 rounded-xl border border-default-200 p-4 transition hover:border-accent hover:bg-accent/5"
-              >
-                <span
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-default-100 text-lg group-hover:bg-accent/15"
-                  aria-hidden
+            {QUICK_LINKS.map((q) => {
+              const Icon = q.icon;
+              return (
+                <Link
+                  key={q.href}
+                  href={q.href}
+                  className="group flex flex-col gap-2 rounded-xl border border-default-200 p-4 transition hover:border-accent hover:bg-accent/5"
                 >
-                  {q.icon}
-                </span>
-                <span className="font-medium">{q.title}</span>
-                <span className="text-xs text-default-500">{q.desc}</span>
-              </Link>
-            ))}
+                  <span
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-default-100 text-default-700 group-hover:bg-accent/15 group-hover:text-accent"
+                    aria-hidden
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="font-medium">{q.title}</span>
+                  <span className="text-xs text-default-500">{q.desc}</span>
+                </Link>
+              );
+            })}
           </Card.Content>
         </Card>
 
@@ -120,6 +131,7 @@ function StatCard({ stat }: { stat: Stat }) {
     success: "bg-success/15 text-success",
     warning: "bg-warning/15 text-warning",
   };
+  const Icon = stat.icon;
   return (
     <Card>
       <Card.Content className="flex items-start justify-between gap-4">
@@ -134,12 +146,12 @@ function StatCard({ stat }: { stat: Stat }) {
         </div>
         <span
           className={
-            "flex h-10 w-10 items-center justify-center rounded-lg text-lg " +
+            "flex h-10 w-10 items-center justify-center rounded-lg " +
             toneClasses[stat.tone]
           }
           aria-hidden
         >
-          {stat.icon}
+          <Icon className="h-5 w-5" />
         </span>
       </Card.Content>
     </Card>

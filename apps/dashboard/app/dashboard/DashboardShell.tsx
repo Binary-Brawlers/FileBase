@@ -1,6 +1,14 @@
 "use client";
 
 import { Button, Separator, Spinner } from "@heroui/react";
+import {
+  KeyRound,
+  LayoutDashboard,
+  Database,
+  FolderOpen,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -9,14 +17,14 @@ import { ThemeToggle } from "../../components/ThemeToggle";
 import { clearToken, getToken } from "../../lib/auth";
 import { useLogout, useMe } from "../../lib/queries";
 
-type NavItem = { key: string; label: string; icon: string };
+type NavItem = { key: string; label: string; icon: LucideIcon };
 
 const NAV: NavItem[] = [
-  { key: "/dashboard", label: "Overview", icon: "▦" },
-  { key: "/dashboard/files", label: "Files", icon: "🗂" },
-  { key: "/dashboard/presets", label: "Upload presets", icon: "⚙" },
-  { key: "/dashboard/storage", label: "Storage connections", icon: "🗄" },
-  { key: "/dashboard/api-keys", label: "API keys", icon: "🔑" },
+  { key: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { key: "/dashboard/files", label: "Files", icon: FolderOpen },
+  { key: "/dashboard/presets", label: "Upload presets", icon: Settings },
+  { key: "/dashboard/storage", label: "Storage connections", icon: Database },
+  { key: "/dashboard/api-keys", label: "API keys", icon: KeyRound },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -74,6 +82,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <nav aria-label="Primary" className="flex flex-col gap-1">
           {NAV.map((item) => {
             const active = pathname === item.key;
+            const Icon = item.icon;
             return (
               <Link
                 key={item.key}
@@ -85,9 +94,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
                     : "text-default-700 hover:bg-default-100")
                 }
               >
-                <span className="w-5 text-center" aria-hidden>
-                  {item.icon}
-                </span>
+                <Icon className="h-4 w-4 shrink-0" aria-hidden />
                 <span>{item.label}</span>
               </Link>
             );

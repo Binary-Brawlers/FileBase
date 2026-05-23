@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@heroui/react";
+import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ApiError, type InitializeRequest } from "../../lib/api";
@@ -157,7 +158,7 @@ function Stepper({ step }: { step: number }) {
                       : "bg-default-200 text-default-500")
                 }
               >
-                {state === "done" ? "✓" : i + 1}
+                {state === "done" ? <Check className="h-3.5 w-3.5" /> : i + 1}
               </span>
               <span
                 className={

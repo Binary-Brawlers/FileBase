@@ -99,6 +99,11 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(text_id(UploadPresets::Id).primary_key())
                     .col(text_id(UploadPresets::ProjectId))
+                    .col(
+                        ColumnDef::new(UploadPresets::StorageConnectionId)
+                            .string()
+                            .null(),
+                    )
                     .col(string(UploadPresets::Name))
                     .col(string(UploadPresets::Folder))
                     .col(json(UploadPresets::AllowedMimeTypes))
@@ -118,6 +123,15 @@ impl MigrationTrait for Migration {
                             .from(UploadPresets::Table, UploadPresets::ProjectId)
                             .to(Projects::Table, Projects::Id)
                             .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .from(
+                                UploadPresets::Table,
+                                UploadPresets::StorageConnectionId,
+                            )
+                            .to(StorageConnections::Table, StorageConnections::Id)
+                            .on_delete(ForeignKeyAction::SetNull),
                     )
                     .to_owned(),
             )
@@ -470,6 +484,7 @@ enum UploadPresets {
     Table,
     Id,
     ProjectId,
+    StorageConnectionId,
     Name,
     Folder,
     AllowedMimeTypes,

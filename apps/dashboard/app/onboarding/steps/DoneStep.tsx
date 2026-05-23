@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@heroui/react";
+import { Check } from "lucide-react";
 import { API_BASE_URL } from "../../../lib/config";
 
 type Props = { onContinue: () => void };
@@ -23,7 +24,7 @@ await client.upload(file, { preset: "default" });`;
           className="flex h-9 w-9 items-center justify-center rounded-full bg-success/20 text-success"
           aria-hidden
         >
-          ✓
+          <Check className="h-5 w-5" />
         </span>
         <div>
           <p className="font-medium">FileBase is ready</p>

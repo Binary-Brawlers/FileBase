@@ -100,6 +100,44 @@ export type LoginResponse = {
 
 export type CurrentUser = { id: string; name: string; email: string };
 
+export type Project = {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+};
+
+export type StorageConnection = {
+  id: string;
+  project_id: string;
+  type: "local" | "ftp" | "sftp";
+  host: string | null;
+  port: number | null;
+  username: string | null;
+  has_password: boolean;
+  has_private_key: boolean;
+  base_path: string;
+  public_base_url: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateStorageConnectionRequest = {
+  project_id: string;
+} & InitializeRequest["storage"];
+
+export type UpdateStorageConnectionRequest = {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
+  private_key?: string;
+  base_path?: string;
+  public_base_url?: string;
+};
+
+export type StorageTestResponse = { ok: boolean; message?: string };
+
 export const api = {
   getSetupStatus: (opts?: { token?: string }) =>
     request<SetupStatus>("/setup/status", { token: opts?.token }),
@@ -113,4 +151,34 @@ export const api = {
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   me: (token?: string | null) =>
     request<CurrentUser>("/auth/me", { token }),
+  listProjects: (token?: string | null) =>
+    request<Project[]>("/projects", { token }),
+  listStorageConnections: (token?: string | null) =>
+    request<StorageConnection[]>("/storage-connections", { token }),
+  createStorageConnection: (
+    body: CreateStorageConnectionRequest,
+    token?: string | null,
+  ) =>
+    request<StorageConnection>("/storage-connections", {
+      method: "POST",
+      body,
+      token,
+    }),
+  updateStorageConnection: (
+    id: string,
+    body: UpdateStorageConnectionRequest,
+    token?: string | null,
+  ) =>
+    request<StorageConnection>(`/storage-connections/${id}`, {
+      method: "PATCH",
+      body,
+      token,
+    }),
+  deleteStorageConnection: (id: string, token?: string | null) =>
+    request<void>(`/storage-connections/${id}`, { method: "DELETE", token }),
+  testStorageConnection: (id: string, token?: string | null) =>
+    request<StorageTestResponse>(`/storage-connections/${id}/test`, {
+      method: "POST",
+      token,
+    }),
 };
