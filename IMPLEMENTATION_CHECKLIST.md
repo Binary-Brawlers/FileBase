@@ -8,7 +8,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 
-Next code milestone is Phase 5: project, upload-preset, and API-key CRUD endpoints plus their dashboard pages.
+Next code milestone is finishing Phase 6 multipart streaming, then Phase 9 file dashboard endpoints and screens.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -87,23 +87,23 @@ Next code milestone is Phase 5: project, upload-preset, and API-key CRUD endpoin
 
 ## Phase 6: Upload Core
 
-- [ ] Implement signed upload session creation.
-- [ ] Store upload session tokens as hashes.
-- [ ] Enforce token expiration.
-- [ ] Enforce project and preset scoping.
-- [ ] Implement direct backend upload endpoint.
-- [ ] Implement session-based frontend upload endpoint.
+- [x] Implement signed upload session creation.
+- [x] Store upload session tokens as hashes.
+- [x] Enforce token expiration.
+- [x] Enforce project and preset scoping.
+- [x] Implement direct backend upload endpoint.
+- [x] Implement session-based frontend upload endpoint.
 - [ ] Add multipart streaming upload handling.
-- [ ] Validate file size.
-- [ ] Validate MIME type and extension.
-- [ ] Add magic byte validation where practical.
-- [ ] Generate SHA-256 file hashes.
-- [ ] Implement duplicate detection.
-- [ ] Implement duplicate strategies: `return_existing`, `upload_new_copy`, and `reject_duplicate`.
-- [ ] Implement safe filename generation.
-- [ ] Upload files through the selected storage adapter.
-- [ ] Save file metadata.
-- [ ] Add upload logs.
+- [x] Validate file size.
+- [x] Validate MIME type and extension.
+- [x] Add magic byte validation where practical.
+- [x] Generate SHA-256 file hashes.
+- [x] Implement duplicate detection.
+- [x] Implement duplicate strategies: `return_existing`, `upload_new_copy`, and `reject_duplicate`.
+- [x] Implement safe filename generation.
+- [x] Upload files through the selected storage adapter.
+- [x] Save file metadata.
+- [x] Add upload logs.
 
 ## Phase 7: Worker And Background Jobs
 

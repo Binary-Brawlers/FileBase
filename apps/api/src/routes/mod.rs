@@ -5,6 +5,7 @@ pub mod projects;
 pub mod setup;
 pub mod storage_connections;
 pub mod upload_presets;
+pub mod uploads;
 
 use axum::{
     routing::{get, patch, post},
@@ -56,6 +57,9 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api-keys", get(api_keys::list).post(api_keys::create))
         .route("/api-keys/:id/revoke", patch(api_keys::revoke))
+        .route("/uploads/sign", post(uploads::sign))
+        .route("/uploads", post(uploads::direct_upload))
+        .route("/uploads/:session_id", post(uploads::session_upload))
 }
 
 async fn root() -> &'static str {
