@@ -47,10 +47,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_headers(Any);
 
     let middleware = ServiceBuilder::new()
-        .layer(SetRequestIdLayer::new(
-            REQUEST_ID_HEADER,
-            MakeUuidRequestId,
-        ))
+        .layer(SetRequestIdLayer::new(REQUEST_ID_HEADER, MakeUuidRequestId))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
