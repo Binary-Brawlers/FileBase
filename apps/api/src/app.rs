@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
-use axum::Router;
+use axum::{
+    http::{header, HeaderValue, Method},
+    Router,
+};
 use filebase_migration::{Migrator, MigratorTrait};
 use tower::ServiceBuilder;
 use tower_http::{
-    cors::{Any, CorsLayer},
+    cors::CorsLayer,
     request_id::{PropagateRequestIdLayer, SetRequestIdLayer},
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
@@ -27,6 +30,7 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
 
     let redis = db::redis::connect(&config)?;
     let bind_address = config.bind_address;
+    let dashboard_origin = HeaderValue::from_str(&config.dashboard_url)?;
 
     let state = AppState {
         db,
@@ -35,9 +39,17 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
     };
 
     let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_origin(dashboard_origin)
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, REQUEST_ID_HEADER])
+        .allow_credentials(true);
 
     let middleware = ServiceBuilder::new()
         .layer(SetRequestIdLayer::new(REQUEST_ID_HEADER, MakeUuidRequestId))
