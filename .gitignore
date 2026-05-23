@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+.pnp.*
+
+# Build outputs
+dist/
+build/
+target/
+.turbo/
+.next/
+out/
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# OS and editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

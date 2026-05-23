@@ -1,0 +1,11 @@
+{
+  "name": "@filebase/docs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo docs site not configured yet",
+    "build": "echo docs site not configured yet",
+    "lint": "echo docs site not configured yet",
+    "typecheck": "echo docs site not configured yet"
+  }
+}
