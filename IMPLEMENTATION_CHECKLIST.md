@@ -8,7 +8,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 
-Next code milestone is finishing Phase 6 multipart streaming, then Phase 9 file dashboard endpoints and screens.
+Next code milestone is finishing Phase 6 multipart streaming, then Phase 8 image processing.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -107,16 +107,16 @@ Next code milestone is finishing Phase 6 multipart streaming, then Phase 9 file 
 
 ## Phase 7: Worker And Background Jobs
 
-- [ ] Replace the placeholder worker with a real worker process.
-- [ ] Add Redis-backed job queue abstraction.
-- [ ] Add `process-image` job.
-- [ ] Add `upload-to-storage` job if uploads are processed asynchronously.
-- [ ] Add `generate-thumbnail` job.
-- [ ] Add `send-webhook` job.
-- [ ] Add `delete-file` job.
-- [ ] Add `cleanup-temp-file` job.
-- [ ] Add retry behavior for failed jobs.
-- [ ] Add job logging and failure visibility.
+- [x] Replace the placeholder worker with a real worker process.
+- [x] Add Redis-backed job queue abstraction.
+- [x] Add `process-image` job.
+- [x] Add `upload-to-storage` job if uploads are processed asynchronously.
+- [x] Add `generate-thumbnail` job.
+- [x] Add `send-webhook` job.
+- [x] Add `delete-file` job.
+- [x] Add `cleanup-temp-file` job.
+- [x] Add retry behavior for failed jobs.
+- [x] Add job logging and failure visibility.
 
 ## Phase 8: Image Processing
 
@@ -131,16 +131,16 @@ Next code milestone is finishing Phase 6 multipart streaming, then Phase 9 file 
 
 ## Phase 9: Files Dashboard
 
-- [ ] Add files list endpoint.
-- [ ] Add file detail endpoint.
-- [ ] Add file delete endpoint.
-- [ ] Delete files from storage adapter and database safely.
-- [ ] Add file listing dashboard page.
-- [ ] Add search by filename/path.
-- [ ] Add filters by MIME type and date.
-- [ ] Add copy URL action.
-- [ ] Add file detail drawer or page.
-- [ ] Add upload logs view.
+- [x] Add files list endpoint.
+- [x] Add file detail endpoint.
+- [x] Add file delete endpoint.
+- [x] Delete files from storage adapter and database safely.
+- [x] Add file listing dashboard page.
+- [x] Add search by filename/path.
+- [x] Add filters by MIME type and date.
+- [x] Add copy URL action.
+- [x] Add file detail drawer or page.
+- [x] Add upload logs view.
 
 ## Phase 10: Webhooks
 

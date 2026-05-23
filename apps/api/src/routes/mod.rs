@@ -1,5 +1,6 @@
 pub mod api_keys;
 pub mod auth;
+pub mod files;
 pub mod health;
 pub mod projects;
 pub mod setup;
@@ -60,6 +61,9 @@ pub fn router() -> Router<AppState> {
         .route("/uploads/sign", post(uploads::sign))
         .route("/uploads", post(uploads::direct_upload))
         .route("/uploads/:session_id", post(uploads::session_upload))
+        .route("/files", get(files::list))
+        .route("/files/:id", get(files::get).delete(files::delete))
+        .route("/files/:id/logs", get(files::logs))
 }
 
 async fn root() -> &'static str {

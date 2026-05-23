@@ -7,6 +7,7 @@ import {
   type CreateProjectRequest,
   type CreateStorageConnectionRequest,
   type CreateUploadPresetRequest,
+  type FileFilters,
   type InitializeRequest,
   type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
@@ -21,6 +22,8 @@ export const queryKeys = {
   storageConnections: ["storage-connections"] as const,
   uploadPresets: ["upload-presets"] as const,
   apiKeys: ["api-keys"] as const,
+  files: (filters?: FileFilters) => ["files", filters ?? {}] as const,
+  fileLogs: (id?: string | null) => ["files", id, "logs"] as const,
 };
 
 export function useSetupStatus() {
@@ -194,5 +197,28 @@ export function useRevokeApiKey() {
   return useMutation({
     mutationFn: (id: string) => api.revokeApiKey(id, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.apiKeys }),
+  });
+}
+
+export function useFiles(filters?: FileFilters) {
+  return useQuery({
+    queryKey: queryKeys.files(filters),
+    queryFn: () => api.listFiles(filters, getToken()),
+  });
+}
+
+export function useFileLogs(id?: string | null) {
+  return useQuery({
+    queryKey: queryKeys.fileLogs(id),
+    queryFn: () => api.getFileLogs(id!, getToken()),
+    enabled: !!id,
+  });
+}
+
+export function useDeleteFile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteFile(id, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["files"] }),
   });
 }

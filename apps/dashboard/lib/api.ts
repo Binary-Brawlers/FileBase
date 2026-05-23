@@ -193,6 +193,54 @@ export type CreateApiKeyRequest = {
   mode: "live" | "test";
 };
 
+export type FileRecord = {
+  id: string;
+  project_id: string;
+  storage_connection_id: string;
+  original_name: string;
+  saved_name: string;
+  mime_type: string;
+  extension: string;
+  size: number;
+  hash: string;
+  folder: string;
+  path: string;
+  url: string;
+  status: string;
+  duplicate_of_file_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UploadLog = {
+  id: string;
+  project_id: string;
+  file_id: string | null;
+  event: string;
+  status: string;
+  message: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type FileFilters = {
+  project_id?: string;
+  search?: string;
+  mime_type?: string;
+  from?: string;
+  to?: string;
+};
+
+function queryString(filters?: FileFilters) {
+  const params = new URLSearchParams();
+  Object.entries(filters ?? {}).forEach(([key, value]) => {
+    if (value) params.set(key, value);
+  });
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export const api = {
   getSetupStatus: (opts?: { token?: string }) =>
     request<SetupStatus>("/setup/status", { token: opts?.token }),
@@ -262,4 +310,12 @@ export const api = {
     request<CreatedApiKey>("/api-keys", { method: "POST", body, token }),
   revokeApiKey: (id: string, token?: string | null) =>
     request<ApiKey>(`/api-keys/${id}/revoke`, { method: "PATCH", token }),
+  listFiles: (filters?: FileFilters, token?: string | null) =>
+    request<FileRecord[]>(`/files${queryString(filters)}`, { token }),
+  getFile: (id: string, token?: string | null) =>
+    request<FileRecord>(`/files/${id}`, { token }),
+  deleteFile: (id: string, token?: string | null) =>
+    request<void>(`/files/${id}`, { method: "DELETE", token }),
+  getFileLogs: (id: string, token?: string | null) =>
+    request<UploadLog[]>(`/files/${id}/logs`, { token }),
 };

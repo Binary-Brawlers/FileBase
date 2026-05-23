@@ -31,6 +31,12 @@ const STATS: Stat[] = [
 
 const QUICK_LINKS: { href: string; title: string; desc: string; icon: LucideIcon }[] = [
   {
+    href: "/dashboard/files",
+    title: "Files",
+    desc: "Browse uploads, copy URLs, and inspect logs.",
+    icon: FolderOpen,
+  },
+  {
     href: "/dashboard/presets",
     title: "Upload presets",
     desc: "Define folders, size limits, and duplicate handling.",

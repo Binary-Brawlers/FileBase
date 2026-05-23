@@ -793,7 +793,12 @@ dependencies = [
 name = "filebase-core"
 version = "0.1.0"
 dependencies = [
+ "chrono",
+ "redis",
+ "serde",
+ "serde_json",
  "thiserror",
+ "uuid",
 ]
 
 [[package]]
@@ -855,8 +860,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "filebase-core",
+ "redis",
+ "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

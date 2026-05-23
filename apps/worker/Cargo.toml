@@ -8,6 +8,9 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+redis.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 filebase-core = { path = "../../crates/core" }
