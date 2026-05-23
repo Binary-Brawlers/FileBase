@@ -48,7 +48,11 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
             Method::DELETE,
             Method::OPTIONS,
         ])
-        .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, REQUEST_ID_HEADER])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            REQUEST_ID_HEADER,
+        ])
         .allow_credentials(true);
 
     let middleware = ServiceBuilder::new()

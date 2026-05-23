@@ -54,7 +54,9 @@ fn connect(cfg: &SftpConfig) -> StorageResult<(Session, Sftp)> {
     }
 
     if !session.authenticated() {
-        return Err(StorageError::Authentication("sftp not authenticated".into()));
+        return Err(StorageError::Authentication(
+            "sftp not authenticated".into(),
+        ));
     }
 
     let sftp = session

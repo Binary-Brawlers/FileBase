@@ -315,7 +315,9 @@ fn build_preset(
         allowed_extensions: Set(json!(input.allowed_extensions.unwrap_or_default())),
         max_file_size: Set(input.max_file_size.unwrap_or(10_485_760)),
         duplicate_strategy: Set(duplicate_strategy),
-        filename_strategy: Set(input.filename_strategy.unwrap_or_else(|| "slug_random".into())),
+        filename_strategy: Set(input
+            .filename_strategy
+            .unwrap_or_else(|| "slug_random".into())),
         transformations_json: Set(input.transformations.unwrap_or_else(|| json!({}))),
         created_at: Set(now),
         updated_at: Set(now),

@@ -74,16 +74,16 @@ Next code milestone is Phase 5: project, upload-preset, and API-key CRUD endpoin
 
 ## Phase 5: Projects, Presets, And API Keys
 
-- [ ] Implement project CRUD endpoints.
-- [ ] Implement upload preset CRUD endpoints.
-- [ ] Add preset validation for MIME types, extensions, max file size, duplicate strategy, filename strategy, folder, and transformations.
-- [ ] Implement API key creation.
-- [ ] Generate API keys with `fb_live_` and `fb_test_` prefixes.
-- [ ] Store only API key hashes and prefixes.
-- [ ] Add API key revocation.
-- [ ] Add dashboard pages for projects.
-- [ ] Add dashboard pages for upload presets.
-- [ ] Add dashboard pages for API keys.
+- [x] Implement project CRUD endpoints.
+- [x] Implement upload preset CRUD endpoints.
+- [x] Add preset validation for MIME types, extensions, max file size, duplicate strategy, filename strategy, folder, and transformations.
+- [x] Implement API key creation.
+- [x] Generate API keys with `fb_live_` and `fb_test_` prefixes.
+- [x] Store only API key hashes and prefixes.
+- [x] Add API key revocation.
+- [x] Add dashboard pages for projects.
+- [x] Add dashboard pages for upload presets.
+- [x] Add dashboard pages for API keys.
 
 ## Phase 6: Upload Core
 

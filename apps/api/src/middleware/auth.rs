@@ -38,7 +38,10 @@ pub struct AuthUser {
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = ApiError;
 
-    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
         let token = extract_token(parts).ok_or(ApiError::Unauthorized)?;
         let claims = decode_token(&state.config.jwt_secret, &token)?;
         Ok(AuthUser { claims })

@@ -53,7 +53,9 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> ApiResult<Response> {
     if payload.email.is_empty() || payload.password.is_empty() {
-        return Err(ApiError::Validation("email and password are required".into()));
+        return Err(ApiError::Validation(
+            "email and password are required".into(),
+        ));
     }
 
     let found = user::Entity::find()

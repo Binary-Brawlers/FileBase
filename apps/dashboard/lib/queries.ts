@@ -3,9 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  type CreateApiKeyRequest,
+  type CreateProjectRequest,
   type CreateStorageConnectionRequest,
+  type CreateUploadPresetRequest,
   type InitializeRequest,
+  type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
+  type UpdateUploadPresetRequest,
 } from "./api";
 import { getToken } from "./auth";
 
@@ -14,6 +19,8 @@ export const queryKeys = {
   me: ["auth", "me"] as const,
   projects: ["projects"] as const,
   storageConnections: ["storage-connections"] as const,
+  uploadPresets: ["upload-presets"] as const,
+  apiKeys: ["api-keys"] as const,
 };
 
 export function useSetupStatus() {
@@ -63,6 +70,31 @@ export function useProjects() {
   });
 }
 
+export function useCreateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateProjectRequest) => api.createProject(body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
+  });
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateProjectRequest }) =>
+      api.updateProject(id, body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
+  });
+}
+
+export function useDeleteProject() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteProject(id, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
+  });
+}
+
 export function useStorageConnections() {
   return useQuery({
     queryKey: queryKeys.storageConnections,
@@ -107,5 +139,60 @@ export function useDeleteStorageConnection() {
 export function useTestStorageConnection() {
   return useMutation({
     mutationFn: (id: string) => api.testStorageConnection(id, getToken()),
+  });
+}
+
+export function useUploadPresets() {
+  return useQuery({
+    queryKey: queryKeys.uploadPresets,
+    queryFn: () => api.listUploadPresets(getToken()),
+  });
+}
+
+export function useCreateUploadPreset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateUploadPresetRequest) => api.createUploadPreset(body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+  });
+}
+
+export function useUpdateUploadPreset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateUploadPresetRequest }) =>
+      api.updateUploadPreset(id, body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+  });
+}
+
+export function useDeleteUploadPreset() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.deleteUploadPreset(id, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+  });
+}
+
+export function useApiKeys() {
+  return useQuery({
+    queryKey: queryKeys.apiKeys,
+    queryFn: () => api.listApiKeys(getToken()),
+  });
+}
+
+export function useCreateApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreateApiKeyRequest) => api.createApiKey(body, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.apiKeys }),
+  });
+}
+
+export function useRevokeApiKey() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.revokeApiKey(id, getToken()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.apiKeys }),
   });
 }

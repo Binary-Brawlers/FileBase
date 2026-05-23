@@ -105,7 +105,11 @@ export type Project = {
   name: string;
   slug: string;
   created_at: string;
+  updated_at: string;
 };
+
+export type CreateProjectRequest = { name: string; slug?: string };
+export type UpdateProjectRequest = { name?: string; slug?: string };
 
 export type StorageConnection = {
   id: string;
@@ -138,6 +142,57 @@ export type UpdateStorageConnectionRequest = {
 
 export type StorageTestResponse = { ok: boolean; message?: string };
 
+export type UploadPreset = {
+  id: string;
+  project_id: string;
+  storage_connection_id: string | null;
+  name: string;
+  folder: string;
+  allowed_mime_types: string[];
+  allowed_extensions: string[];
+  max_file_size: number;
+  duplicate_strategy: "return_existing" | "upload_new_copy" | "reject_duplicate";
+  filename_strategy: string;
+  transformations: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CreateUploadPresetRequest = {
+  project_id: string;
+  storage_connection_id?: string;
+  name: string;
+  folder: string;
+  allowed_mime_types?: string[];
+  allowed_extensions?: string[];
+  max_file_size: number;
+  duplicate_strategy: UploadPreset["duplicate_strategy"];
+  filename_strategy: string;
+  transformations?: Record<string, unknown>;
+};
+
+export type UpdateUploadPresetRequest = Partial<
+  Omit<CreateUploadPresetRequest, "project_id">
+>;
+
+export type ApiKey = {
+  id: string;
+  project_id: string;
+  name: string;
+  prefix: string;
+  last_used_at: string | null;
+  created_at: string;
+  revoked_at: string | null;
+};
+
+export type CreatedApiKey = ApiKey & { secret: string };
+
+export type CreateApiKeyRequest = {
+  project_id: string;
+  name: string;
+  mode: "live" | "test";
+};
+
 export const api = {
   getSetupStatus: (opts?: { token?: string }) =>
     request<SetupStatus>("/setup/status", { token: opts?.token }),
@@ -153,6 +208,15 @@ export const api = {
     request<CurrentUser>("/auth/me", { token }),
   listProjects: (token?: string | null) =>
     request<Project[]>("/projects", { token }),
+  createProject: (body: CreateProjectRequest, token?: string | null) =>
+    request<Project>("/projects", { method: "POST", body, token }),
+  updateProject: (
+    id: string,
+    body: UpdateProjectRequest,
+    token?: string | null,
+  ) => request<Project>(`/projects/${id}`, { method: "PATCH", body, token }),
+  deleteProject: (id: string, token?: string | null) =>
+    request<void>(`/projects/${id}`, { method: "DELETE", token }),
   listStorageConnections: (token?: string | null) =>
     request<StorageConnection[]>("/storage-connections", { token }),
   createStorageConnection: (
@@ -181,4 +245,21 @@ export const api = {
       method: "POST",
       token,
     }),
+  listUploadPresets: (token?: string | null) =>
+    request<UploadPreset[]>("/upload-presets", { token }),
+  createUploadPreset: (body: CreateUploadPresetRequest, token?: string | null) =>
+    request<UploadPreset>("/upload-presets", { method: "POST", body, token }),
+  updateUploadPreset: (
+    id: string,
+    body: UpdateUploadPresetRequest,
+    token?: string | null,
+  ) => request<UploadPreset>(`/upload-presets/${id}`, { method: "PATCH", body, token }),
+  deleteUploadPreset: (id: string, token?: string | null) =>
+    request<void>(`/upload-presets/${id}`, { method: "DELETE", token }),
+  listApiKeys: (token?: string | null) =>
+    request<ApiKey[]>("/api-keys", { token }),
+  createApiKey: (body: CreateApiKeyRequest, token?: string | null) =>
+    request<CreatedApiKey>("/api-keys", { method: "POST", body, token }),
+  revokeApiKey: (id: string, token?: string | null) =>
+    request<ApiKey>(`/api-keys/${id}/revoke`, { method: "PATCH", token }),
 };

@@ -126,10 +126,7 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .from(
-                                UploadPresets::Table,
-                                UploadPresets::StorageConnectionId,
-                            )
+                            .from(UploadPresets::Table, UploadPresets::StorageConnectionId)
                             .to(StorageConnections::Table, StorageConnections::Id)
                             .on_delete(ForeignKeyAction::SetNull),
                     )

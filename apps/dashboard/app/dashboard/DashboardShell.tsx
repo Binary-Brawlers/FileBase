@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Database,
   FolderOpen,
+  Boxes,
   Settings,
   type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ type NavItem = { key: string; label: string; icon: LucideIcon };
 
 const NAV: NavItem[] = [
   { key: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  { key: "/dashboard/projects", label: "Projects", icon: Boxes },
   { key: "/dashboard/files", label: "Files", icon: FolderOpen },
   { key: "/dashboard/presets", label: "Upload presets", icon: Settings },
   { key: "/dashboard/storage", label: "Storage connections", icon: Database },

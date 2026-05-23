@@ -32,7 +32,9 @@ pub fn decrypt(payload: &str, key: &str) -> Result<String, ApiError> {
         .decode(payload)
         .map_err(|e| ApiError::Internal(anyhow::anyhow!("decrypt base64: {e}")))?;
     if bytes.len() < 12 {
-        return Err(ApiError::Internal(anyhow::anyhow!("decrypt: short payload")));
+        return Err(ApiError::Internal(anyhow::anyhow!(
+            "decrypt: short payload"
+        )));
     }
     let (nonce_bytes, ciphertext) = bytes.split_at(12);
     let nonce = Nonce::from_slice(nonce_bytes);

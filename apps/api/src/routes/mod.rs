@@ -1,3 +1,4 @@
+pub mod api_keys;
 pub mod auth;
 pub mod health;
 pub mod projects;
@@ -6,7 +7,7 @@ pub mod storage_connections;
 pub mod upload_presets;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, patch, post},
     Router,
 };
 
@@ -36,8 +37,25 @@ pub fn router() -> Router<AppState> {
             "/storage-connections/:id/test",
             post(storage_connections::test),
         )
-        .route("/projects", get(projects::list))
-        .route("/upload-presets/:id", axum::routing::patch(upload_presets::update))
+        .route("/projects", get(projects::list).post(projects::create))
+        .route(
+            "/projects/:id",
+            get(projects::get)
+                .patch(projects::update)
+                .delete(projects::delete),
+        )
+        .route(
+            "/upload-presets",
+            get(upload_presets::list).post(upload_presets::create),
+        )
+        .route(
+            "/upload-presets/:id",
+            get(upload_presets::get)
+                .patch(upload_presets::update)
+                .delete(upload_presets::delete),
+        )
+        .route("/api-keys", get(api_keys::list).post(api_keys::create))
+        .route("/api-keys/:id/revoke", patch(api_keys::revoke))
 }
 
 async fn root() -> &'static str {
