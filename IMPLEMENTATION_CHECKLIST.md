@@ -8,7 +8,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 
-Next code milestone is finishing Phase 6 multipart streaming, then Phase 8 image processing.
+Next code milestone is Phase 10 webhooks, then Phase 11 SDKs.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -93,7 +93,7 @@ Next code milestone is finishing Phase 6 multipart streaming, then Phase 8 image
 - [x] Enforce project and preset scoping.
 - [x] Implement direct backend upload endpoint.
 - [x] Implement session-based frontend upload endpoint.
-- [ ] Add multipart streaming upload handling.
+- [x] Add multipart streaming upload handling.
 - [x] Validate file size.
 - [x] Validate MIME type and extension.
 - [x] Add magic byte validation where practical.
@@ -120,14 +120,14 @@ Next code milestone is finishing Phase 6 multipart streaming, then Phase 8 image
 
 ## Phase 8: Image Processing
 
-- [ ] Choose MVP image processing implementation.
-- [ ] Add image compression.
-- [ ] Add WebP conversion.
-- [ ] Add resizing.
-- [ ] Add thumbnail generation.
-- [ ] Add option to preserve originals.
-- [ ] Save transformation metadata.
-- [ ] Expose image transformation controls through upload presets.
+- [x] Choose MVP image processing implementation.
+- [x] Add image compression.
+- [x] Add WebP conversion.
+- [x] Add resizing.
+- [x] Add thumbnail generation.
+- [x] Add option to preserve originals.
+- [x] Save transformation metadata.
+- [x] Expose image transformation controls through upload presets.
 
 ## Phase 9: Files Dashboard
 

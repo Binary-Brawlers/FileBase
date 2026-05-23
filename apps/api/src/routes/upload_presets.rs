@@ -5,6 +5,7 @@ use axum::{
     Json,
 };
 use chrono::Utc;
+use filebase_image_processing::validate_transformations_json;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set,
 };
@@ -383,6 +384,7 @@ fn validate_transformations(value: JsonValue) -> Result<JsonValue, ApiError> {
             "transformations must be an object".into(),
         ));
     }
+    validate_transformations_json(&value).map_err(|e| ApiError::Validation(e.to_string()))?;
     Ok(value)
 }
 
