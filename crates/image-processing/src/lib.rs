@@ -6,7 +6,7 @@ use image::{
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ImageProcessingPreset {
     pub enabled: bool,
@@ -15,19 +15,6 @@ pub struct ImageProcessingPreset {
     pub resize: Option<ResizeOptions>,
     pub thumbnail: Option<ThumbnailOptions>,
     pub preserve_original: bool,
-}
-
-impl Default for ImageProcessingPreset {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            format: None,
-            quality: None,
-            resize: None,
-            thumbnail: None,
-            preserve_original: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]

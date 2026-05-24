@@ -188,7 +188,7 @@ write_compose() {
     cat >"$path" <<'EOF'
 services:
   api:
-    image: filebase/api:${FILEBASE_VERSION:-latest}
+    image: ghcr.io/binary-brawlers/filebase-api:${FILEBASE_VERSION:-latest}
     env_file: .env
     depends_on:
       postgres:
@@ -202,7 +202,7 @@ services:
     restart: unless-stopped
 
   worker:
-    image: filebase/worker:${FILEBASE_VERSION:-latest}
+    image: ghcr.io/binary-brawlers/filebase-worker:${FILEBASE_VERSION:-latest}
     env_file: .env
     depends_on:
       postgres:
@@ -214,7 +214,10 @@ services:
     restart: unless-stopped
 
   dashboard:
-    image: filebase/dashboard:${FILEBASE_VERSION:-latest}
+    image: ghcr.io/binary-brawlers/filebase-dashboard:${FILEBASE_VERSION:-latest}
+    environment:
+      API_URL: http://api:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://${SERVER_IP:-localhost}:8080}
     env_file: .env
     depends_on:
       - api

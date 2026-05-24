@@ -1,0 +1,44 @@
+name: Release
+
+# Fires when a tag like v0.1.0 is pushed.
+# 1. Waits for the image build workflow to push the matching tags to GHCR.
+# 2. Generates the release notes section with git-cliff (commits since the
+#    previous tag).
+# 3. Creates a GitHub Release with the notes + a copy of the release compose
+#    file attached so users can `curl` it.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # git-cliff needs the full history
+
+      - name: Generate release notes
+        id: changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.changelog.outputs.changelog || 'RELEASE_NOTES.md' }}
+          files: |
+            docker-compose.release.yml
+            .env.example
+            scripts/install.sh
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

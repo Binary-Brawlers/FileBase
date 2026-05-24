@@ -10,7 +10,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement MVP SDKs: `@binary-brawlers/filebase-client`, `@binary-brawlers/filebase-react`, `@binary-brawlers/filebase-next`, `@binary-brawlers/filebase-node` (Phase 11).
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 
-Next code milestone is Phase 13 Docker and release infrastructure.
+Next code milestone is Phase 14 documentation.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -195,16 +195,16 @@ Next code milestone is Phase 13 Docker and release infrastructure.
 
 ## Phase 13: Docker And Release Infrastructure
 
-- [ ] Finalize production Dockerfiles.
-- [ ] Ensure dashboard can reach API correctly in Docker Compose.
-- [ ] Add persistent volumes for PostgreSQL and local uploads.
-- [ ] Add image build CI.
-- [ ] Publish API image.
-- [ ] Publish worker image.
-- [ ] Publish dashboard image.
-- [ ] Publish release compose file.
-- [ ] Add version tags.
-- [ ] Add release notes automation.
+- [x] Finalize production Dockerfiles.
+- [x] Ensure dashboard can reach API correctly in Docker Compose.
+- [x] Add persistent volumes for PostgreSQL and local uploads.
+- [x] Add image build CI.
+- [x] Publish API image.
+- [x] Publish worker image.
+- [x] Publish dashboard image.
+- [x] Publish release compose file.
+- [x] Add version tags.
+- [x] Add release notes automation.
 
 ## Phase 14: Documentation
 

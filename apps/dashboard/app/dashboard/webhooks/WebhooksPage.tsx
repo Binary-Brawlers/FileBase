@@ -166,7 +166,7 @@ export function WebhooksPage() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {hook.events.map((event) => <Chip key={event} size="sm" variant="flat">{event}</Chip>)}
+                  {hook.events.map((event) => <Chip key={event} size="sm" variant="soft">{event}</Chip>)}
                 </div>
                 <p className="mt-4 text-xs text-default-500">Updated {new Date(hook.updated_at).toLocaleString()}</p>
               </article>

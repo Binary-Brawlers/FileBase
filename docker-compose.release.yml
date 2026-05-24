@@ -1,11 +1,16 @@
+# Production / install.sh compose file.
+# Pulls pre-built images from GHCR. Override FILEBASE_VERSION to pin a
+# specific release (defaults to `latest`).
+#
+# Usage:
+#   FILEBASE_VERSION=v0.1.0 docker compose -f docker-compose.release.yml up -d
+#
 services:
   api:
-    build:
-      context: .
-      dockerfile: docker/api.Dockerfile
+    image: ghcr.io/binary-brawlers/filebase-api:${FILEBASE_VERSION:-latest}
     env_file: .env
     environment:
-      DATABASE_URL: postgres://filebase:password@postgres:5432/filebase
+      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:-password}@postgres:5432/filebase
       REDIS_URL: redis://redis:6379
       LOCAL_STORAGE_PATH: /var/lib/filebase/uploads
     depends_on:
@@ -14,18 +19,16 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     volumes:
       - uploads_data:/var/lib/filebase/uploads
     restart: unless-stopped
 
   worker:
-    build:
-      context: .
-      dockerfile: docker/worker.Dockerfile
+    image: ghcr.io/binary-brawlers/filebase-worker:${FILEBASE_VERSION:-latest}
     env_file: .env
     environment:
-      DATABASE_URL: postgres://filebase:password@postgres:5432/filebase
+      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:-password}@postgres:5432/filebase
       REDIS_URL: redis://redis:6379
       LOCAL_STORAGE_PATH: /var/lib/filebase/uploads
     depends_on:
@@ -38,29 +41,23 @@ services:
     restart: unless-stopped
 
   dashboard:
-    build:
-      context: .
-      dockerfile: docker/dashboard.Dockerfile
+    image: ghcr.io/binary-brawlers/filebase-dashboard:${FILEBASE_VERSION:-latest}
     env_file: .env
     environment:
-      # Server-side: container-to-container address
       API_URL: http://api:8080
-      # Client-side: address the browser will use to reach the API
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
     depends_on:
       - api
     ports:
-      - "3000:3000"
+      - "${DASHBOARD_PORT:-3000}:3000"
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: filebase
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: filebase
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -73,8 +70,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
