@@ -24,7 +24,6 @@ RUN addgroup --system --gid 1001 nodejs \
 # Next.js standalone output bundles only what's required to serve the app
 COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/dashboard/public ./apps/dashboard/public
 
 USER nextjs
 EXPOSE 3000
