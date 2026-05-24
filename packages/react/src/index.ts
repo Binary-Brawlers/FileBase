@@ -6,7 +6,7 @@ export {
   type FileBaseUploadSession,
   type UploadOptions,
   type UploadProgress,
-} from "@filebase/client";
+} from "@binary-brawlers/filebase-client";
 export { useFileBaseClient } from "./client";
 export {
   useUpload,

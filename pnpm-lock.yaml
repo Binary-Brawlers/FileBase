@@ -20,7 +20,7 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@filebase/shared':
+      '@binary-brawlers/filebase-shared':
         specifier: workspace:*
         version: link:../../packages/shared
       '@heroui/react':
@@ -83,7 +83,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@filebase/shared':
+      '@binary-brawlers/filebase-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -93,13 +93,13 @@ importers:
 
   packages/next:
     dependencies:
-      '@filebase/client':
+      '@binary-brawlers/filebase-client':
         specifier: workspace:*
         version: link:../client
-      '@filebase/node':
+      '@binary-brawlers/filebase-node':
         specifier: workspace:*
         version: link:../node
-      '@filebase/shared':
+      '@binary-brawlers/filebase-shared':
         specifier: workspace:*
         version: link:../shared
       next:
@@ -112,7 +112,7 @@ importers:
 
   packages/node:
     dependencies:
-      '@filebase/shared':
+      '@binary-brawlers/filebase-shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:
@@ -125,7 +125,7 @@ importers:
 
   packages/react:
     dependencies:
-      '@filebase/client':
+      '@binary-brawlers/filebase-client':
         specifier: workspace:*
         version: link:../client
       react:
@@ -141,13 +141,19 @@ importers:
 
   packages/react-native:
     dependencies:
-      '@filebase/client':
+      '@binary-brawlers/filebase-shared':
         specifier: workspace:*
-        version: link:../client
+        version: link:../shared
+      react:
+        specifier: '>=18'
+        version: 19.2.6
       react-native:
         specifier: '>=0.73'
         version: 0.85.3(@babel/core@7.29.0)(@types/react@19.2.15)(react@19.2.6)
     devDependencies:
+      '@types/react':
+        specifier: ^19.0.1
+        version: 19.2.15
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -160,7 +166,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@filebase/client':
+      '@binary-brawlers/filebase-client':
         specifier: workspace:*
         version: link:../client
       vue:

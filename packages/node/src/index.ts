@@ -4,7 +4,7 @@ import {
   type FileBaseSignRequest,
   type FileBaseUploadResult,
   type FileBaseUploadSession,
-} from "@filebase/shared";
+} from "@binary-brawlers/filebase-shared";
 
 export {
   FileBaseError,

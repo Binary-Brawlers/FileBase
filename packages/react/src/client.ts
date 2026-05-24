@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import {
   FileBaseClient,
   type FileBaseClientOptions,
-} from "@filebase/client";
+} from "@binary-brawlers/filebase-client";
 
 export function useFileBaseClient(options: FileBaseClientOptions): FileBaseClient {
   return useMemo(

@@ -7,7 +7,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the backend foundation for first-run setup.
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
-- [x] Implement MVP SDKs: `@filebase/client`, `@filebase/react`, `@filebase/next`, `@filebase/node` (Phase 11).
+- [x] Implement MVP SDKs: `@binary-brawlers/filebase-client`, `@binary-brawlers/filebase-react`, `@binary-brawlers/filebase-next`, `@binary-brawlers/filebase-node` (Phase 11).
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 
 Next code milestone is Phase 13 Docker and release infrastructure.
@@ -160,17 +160,17 @@ Next code milestone is Phase 13 Docker and release infrastructure.
 
 ## Phase 11: SDKs
 
-- [x] Implement `@filebase/client` upload flow.
+- [x] Implement `@binary-brawlers/filebase-client` upload flow.
 - [x] Add signed upload session request support.
 - [x] Add file upload support.
 - [x] Add upload progress support where browser APIs allow it.
 - [x] Add structured SDK errors.
-- [x] Implement `@filebase/react` `useUpload` hook.
-- [x] Implement `@filebase/react` `UploadButton`.
-- [x] Implement `@filebase/react` `UploadDropzone`.
-- [x] Implement `@filebase/next` route helpers.
-- [x] Implement `@filebase/node` admin client.
-- [ ] Add React Native SDK in the post-MVP developer-experience phase.
+- [x] Implement `@binary-brawlers/filebase-react` `useUpload` hook.
+- [x] Implement `@binary-brawlers/filebase-react` `UploadButton`.
+- [x] Implement `@binary-brawlers/filebase-react` `UploadDropzone`.
+- [x] Implement `@binary-brawlers/filebase-next` route helpers.
+- [x] Implement `@binary-brawlers/filebase-node` admin client.
+- [x] Add React Native SDK in the post-MVP developer-experience phase.
 - [ ] Add Vue SDK in the post-MVP developer-experience phase.
 
 ## Phase 12: One-Command Installer
@@ -238,7 +238,7 @@ Next code milestone is Phase 13 Docker and release infrastructure.
 
 ## Phase 16: Post-MVP Expansion
 
-- [ ] Add React Native SDK.
+- [x] Add React Native SDK.
 - [ ] Add Vue SDK.
 - [ ] Add folder management.
 - [ ] Add improved upload logs.

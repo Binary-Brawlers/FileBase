@@ -1,39 +1,46 @@
-import { useCallback, useRef, useState } from "react";
-import {
-  FileBaseClient,
-  FileBaseError,
-  type FileBaseClientOptions,
-  type FileBaseUploadResult,
-  type UploadOptions,
-  type UploadProgress,
-} from "@binary-brawlers/filebase-client";
-import { useFileBaseClient } from "./client";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { FileBaseNativeClient } from "./client";
+import { FileBaseError } from "./types";
+import type {
+  FileBaseNativeClientOptions,
+  FileBaseNativeFile,
+  NativeUploadOptions,
+  NativeUploadProgress,
+  UploadFileResult,
+} from "./types";
 
-export type UseUploadOptions = FileBaseClientOptions & {
+export type UseUploadOptions = FileBaseNativeClientOptions & {
   preset?: string;
   presetId?: string;
   projectId?: string;
-  onUploadComplete?: (file: FileBaseUploadResult) => void;
+  onUploadComplete?: (file: UploadFileResult) => void;
   onUploadError?: (error: FileBaseError) => void;
 };
 
 export type UseUploadState = {
   isUploading: boolean;
-  progress: UploadProgress | null;
+  progress: NativeUploadProgress | null;
   error: FileBaseError | null;
-  file: FileBaseUploadResult | null;
+  file: UploadFileResult | null;
 };
 
 export type UseUploadReturn = UseUploadState & {
-  client: FileBaseClient;
-  upload: (file: Blob, overrides?: UploadOptions) => Promise<FileBaseUploadResult | null>;
+  client: FileBaseNativeClient;
+  upload: (
+    file: FileBaseNativeFile,
+    overrides?: NativeUploadOptions
+  ) => Promise<UploadFileResult | null>;
   abort: () => void;
   reset: () => void;
 };
 
 export function useUpload(options: UseUploadOptions): UseUploadReturn {
-  const { preset, presetId, projectId, onUploadComplete, onUploadError, ...clientOptions } = options;
-  const client = useFileBaseClient(clientOptions);
+  const { preset, presetId, projectId, onUploadComplete, onUploadError, signEndpoint, signHeaders } =
+    options;
+  const client = useMemo(
+    () => new FileBaseNativeClient({ signEndpoint, signHeaders }),
+    [signEndpoint, JSON.stringify(signHeaders ?? null)]
+  );
   const controllerRef = useRef<AbortController | null>(null);
   const [state, setState] = useState<UseUploadState>({
     isUploading: false,
@@ -43,7 +50,7 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
   });
 
   const upload = useCallback(
-    async (file: Blob, overrides: UploadOptions = {}) => {
+    async (file: FileBaseNativeFile, overrides: NativeUploadOptions = {}) => {
       controllerRef.current?.abort();
       const controller = new AbortController();
       controllerRef.current = controller;

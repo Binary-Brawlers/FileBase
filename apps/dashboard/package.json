@@ -1,5 +1,5 @@
 {
-  "name": "@filebase/dashboard",
+  "name": "@binary-brawlers/filebase-dashboard",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@filebase/shared": "workspace:*",
+    "@binary-brawlers/filebase-shared": "workspace:*",
     "@heroui/react": "3.0.5",
     "@heroui/styles": "3.0.5",
     "@tanstack/react-query": "^5.100.14",

@@ -9,7 +9,7 @@ type Props = { onContinue: () => void };
 export function DoneStep({ onContinue }: Props) {
   const dashboardUrl =
     typeof window !== "undefined" ? window.location.origin : "";
-  const snippet = `import { FileBaseClient } from "@filebase/client";
+  const snippet = `import { FileBaseClient } from "@binary-brawlers/filebase-client";
 
 const client = new FileBaseClient({
   signEndpoint: "/api/upload/sign",

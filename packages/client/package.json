@@ -1,10 +1,12 @@
 {
-  "name": "@filebase/client",
-  "version": "0.1.0",
+  "name": "@binary-brawlers/filebase-client",
+  "version": "0.1.1",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
@@ -12,9 +14,12 @@
     "test": "echo no tests yet"
   },
   "dependencies": {
-    "@filebase/shared": "workspace:*"
+    "@binary-brawlers/filebase-shared": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

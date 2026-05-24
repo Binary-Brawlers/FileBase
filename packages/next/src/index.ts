@@ -1,5 +1,5 @@
-import { FileBase, type FileBaseOptions } from "@filebase/node";
-import { FileBaseError, type FileBaseSignRequest, type FileBaseUploadSession } from "@filebase/shared";
+import { FileBase, type FileBaseOptions } from "@binary-brawlers/filebase-node";
+import { FileBaseError, type FileBaseSignRequest, type FileBaseUploadSession } from "@binary-brawlers/filebase-shared";
 
 export {
   FileBase,
@@ -8,7 +8,7 @@ export {
   type FileBaseSignRequest,
   type FileBaseUploadSession,
 };
-export { FileBaseClient } from "@filebase/client";
+export { FileBaseClient } from "@binary-brawlers/filebase-client";
 
 export type CreateFileBaseRouteOptions = FileBaseOptions & {
   /**

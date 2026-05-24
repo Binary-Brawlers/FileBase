@@ -813,12 +813,12 @@ It should provide SDKs that make uploads easy from frontend and mobile apps.
 Recommended packages:
 
 ```text
-@filebase/client
-@filebase/react
-@filebase/react-native
-@filebase/next
-@filebase/vue
-@filebase/node
+@binary-brawlers/filebase-client
+@binary-brawlers/filebase-react
+@binary-brawlers/filebase-react-native
+@binary-brawlers/filebase-next
+@binary-brawlers/filebase-vue
+@binary-brawlers/filebase-node
 ```
 
 ---
@@ -828,7 +828,7 @@ Recommended packages:
 Package:
 
 ```text
-@filebase/client
+@binary-brawlers/filebase-client
 ```
 
 Responsibilities:
@@ -843,7 +843,7 @@ Responsibilities:
 Example:
 
 ```ts
-import { FileBaseClient } from "@filebase/client";
+import { FileBaseClient } from "@binary-brawlers/filebase-client";
 
 const client = new FileBaseClient({
   signEndpoint: "/api/upload/sign"
@@ -863,7 +863,7 @@ console.log(result.url);
 Package:
 
 ```text
-@filebase/react
+@binary-brawlers/filebase-react
 ```
 
 Features:
@@ -880,7 +880,7 @@ Features:
 Example:
 
 ```tsx
-import { UploadButton } from "@filebase/react";
+import { UploadButton } from "@binary-brawlers/filebase-react";
 
 export function ProfileUploader() {
   return (
@@ -904,7 +904,7 @@ export function ProfileUploader() {
 Package:
 
 ```text
-@filebase/react-native
+@binary-brawlers/filebase-react-native
 ```
 
 Features:
@@ -920,7 +920,7 @@ Features:
 Example:
 
 ```tsx
-import { uploadFile } from "@filebase/react-native";
+import { uploadFile } from "@binary-brawlers/filebase-react-native";
 
 const result = await uploadFile({
   uri: image.uri,
@@ -940,7 +940,7 @@ console.log(result.url);
 Package:
 
 ```text
-@filebase/next
+@binary-brawlers/filebase-next
 ```
 
 Features:
@@ -955,7 +955,7 @@ Features:
 Example App Router signing route:
 
 ```ts
-import { createFileBaseRoute } from "@filebase/next";
+import { createFileBaseRoute } from "@binary-brawlers/filebase-next";
 
 export const POST = createFileBaseRoute({
   apiKey: process.env.FILEBASE_API_KEY,
@@ -970,7 +970,7 @@ export const POST = createFileBaseRoute({
 Package:
 
 ```text
-@filebase/node
+@binary-brawlers/filebase-node
 ```
 
 Features:
@@ -987,7 +987,7 @@ Features:
 Example:
 
 ```ts
-import { FileBase } from "@filebase/node";
+import { FileBase } from "@binary-brawlers/filebase-node";
 
 const fileBase = new FileBase({
   apiKey: process.env.FILEBASE_API_KEY,
@@ -1689,7 +1689,7 @@ The ideal developer experience should be:
 Example:
 
 ```bash
-pnpm add @filebase/react
+pnpm add @binary-brawlers/filebase-react
 ```
 
 ```tsx
