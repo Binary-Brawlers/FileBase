@@ -7,8 +7,10 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement the backend foundation for first-run setup.
 - [x] Implement the dashboard onboarding UI (Phase 3).
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
+- [x] Implement MVP SDKs: `@filebase/client`, `@filebase/react`, `@filebase/next`, `@filebase/node` (Phase 11).
+- [x] Add one-command installer `scripts/install.sh` (Phase 12).
 
-Next code milestone is Phase 11 SDKs.
+Next code milestone is Phase 13 Docker and release infrastructure.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -158,38 +160,38 @@ Next code milestone is Phase 11 SDKs.
 
 ## Phase 11: SDKs
 
-- [ ] Implement `@filebase/client` upload flow.
-- [ ] Add signed upload session request support.
-- [ ] Add file upload support.
-- [ ] Add upload progress support where browser APIs allow it.
-- [ ] Add structured SDK errors.
-- [ ] Implement `@filebase/react` `useUpload` hook.
-- [ ] Implement `@filebase/react` `UploadButton`.
-- [ ] Implement `@filebase/react` `UploadDropzone`.
-- [ ] Implement `@filebase/next` route helpers.
-- [ ] Implement `@filebase/node` admin client.
+- [x] Implement `@filebase/client` upload flow.
+- [x] Add signed upload session request support.
+- [x] Add file upload support.
+- [x] Add upload progress support where browser APIs allow it.
+- [x] Add structured SDK errors.
+- [x] Implement `@filebase/react` `useUpload` hook.
+- [x] Implement `@filebase/react` `UploadButton`.
+- [x] Implement `@filebase/react` `UploadDropzone`.
+- [x] Implement `@filebase/next` route helpers.
+- [x] Implement `@filebase/node` admin client.
 - [ ] Add React Native SDK in the post-MVP developer-experience phase.
 - [ ] Add Vue SDK in the post-MVP developer-experience phase.
 
 ## Phase 12: One-Command Installer
 
-- [ ] Create `scripts/install.sh`.
-- [ ] Check Linux distribution compatibility.
-- [ ] Require root or sudo privileges.
-- [ ] Install Docker if missing.
-- [ ] Install Docker Compose if missing.
-- [ ] Create `/opt/filebase`.
-- [ ] Create `/opt/filebase/data/postgres`.
-- [ ] Create `/opt/filebase/data/uploads`.
-- [ ] Generate secure `JWT_SECRET`.
-- [ ] Generate secure `ENCRYPTION_KEY`.
-- [ ] Write `/opt/filebase/.env`.
-- [ ] Write or download `/opt/filebase/docker-compose.yml`.
-- [ ] Pull FileBase images.
-- [ ] Start services.
-- [ ] Detect server IP.
-- [ ] Print first-run setup URL.
-- [ ] Add uninstall or upgrade notes.
+- [x] Create `scripts/install.sh`.
+- [x] Check Linux distribution compatibility.
+- [x] Require root or sudo privileges.
+- [x] Install Docker if missing.
+- [x] Install Docker Compose if missing.
+- [x] Create `/opt/filebase`.
+- [x] Create `/opt/filebase/data/postgres`.
+- [x] Create `/opt/filebase/data/uploads`.
+- [x] Generate secure `JWT_SECRET`.
+- [x] Generate secure `ENCRYPTION_KEY`.
+- [x] Write `/opt/filebase/.env`.
+- [x] Write or download `/opt/filebase/docker-compose.yml`.
+- [x] Pull FileBase images.
+- [x] Start services.
+- [x] Detect server IP.
+- [x] Print first-run setup URL.
+- [x] Add uninstall or upgrade notes.
 
 ## Phase 13: Docker And Release Infrastructure
 

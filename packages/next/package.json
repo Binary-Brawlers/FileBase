@@ -12,7 +12,9 @@
     "test": "echo no tests yet"
   },
   "dependencies": {
-    "@filebase/client": "workspace:*"
+    "@filebase/client": "workspace:*",
+    "@filebase/node": "workspace:*",
+    "@filebase/shared": "workspace:*"
   },
   "peerDependencies": {
     "next": ">=14"

@@ -96,6 +96,12 @@ importers:
       '@filebase/client':
         specifier: workspace:*
         version: link:../client
+      '@filebase/node':
+        specifier: workspace:*
+        version: link:../node
+      '@filebase/shared':
+        specifier: workspace:*
+        version: link:../shared
       next:
         specifier: '>=14'
         version: 15.5.18(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -106,9 +112,9 @@ importers:
 
   packages/node:
     dependencies:
-      '@filebase/client':
+      '@filebase/shared':
         specifier: workspace:*
-        version: link:../client
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
