@@ -1,4 +1,4 @@
-FROM rust:1.85-slim AS chef
+FROM rust:1.88-slim AS chef
 WORKDIR /app
 RUN cargo install cargo-chef --locked --version 0.1.68
 RUN apt-get update \
