@@ -9,8 +9,9 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement storage adapters, connection management backend, and dashboard (Phase 4).
 - [x] Implement MVP SDKs: `@binary-brawlers/filebase-client`, `@binary-brawlers/filebase-react`, `@binary-brawlers/filebase-next`, `@binary-brawlers/filebase-node` (Phase 11).
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
+- [x] Write Phase 14 documentation guides.
 
-Next code milestone is Phase 14 documentation.
+Next code milestone is Phase 15 hardening before public MVP.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -208,18 +209,18 @@ Next code milestone is Phase 14 documentation.
 
 ## Phase 14: Documentation
 
-- [ ] Write quick-start install guide.
-- [ ] Write manual Docker Compose guide.
-- [ ] Write first-run onboarding guide.
-- [ ] Write local storage guide.
-- [ ] Write FTP storage guide.
-- [ ] Write SFTP storage guide.
-- [ ] Write API key guide.
-- [ ] Write upload preset guide.
-- [ ] Write signed upload guide.
-- [ ] Write SDK guides.
-- [ ] Write troubleshooting guide.
-- [ ] Write security recommendations.
+- [x] Write quick-start install guide.
+- [x] Write manual Docker Compose guide.
+- [x] Write first-run onboarding guide.
+- [x] Write local storage guide.
+- [x] Write FTP storage guide.
+- [x] Write SFTP storage guide.
+- [x] Write API key guide.
+- [x] Write upload preset guide.
+- [x] Write signed upload guide.
+- [x] Write SDK guides.
+- [x] Write troubleshooting guide.
+- [x] Write security recommendations.
 
 ## Phase 15: Hardening Before Public MVP
 
