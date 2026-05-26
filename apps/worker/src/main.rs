@@ -3,7 +3,7 @@ use std::time::Duration;
 use filebase_core::jobs::{JobEnvelope, JobKind, JobQueue, ReservedJob};
 use hmac::{Hmac, Mac};
 use sea_orm::{ConnectionTrait, Database, DatabaseConnection, Statement};
-use serde_json::json;
+use serde_json::{json, Value};
 use sha2::Sha256;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use uuid::Uuid;
@@ -90,17 +90,17 @@ async fn process_job(job: &JobEnvelope, db: &DatabaseConnection) -> anyhow::Resu
 }
 
 async fn process_image(job: &JobEnvelope) -> anyhow::Result<()> {
-    tracing::info!(job_id = %job.id, payload = %job.payload, "process-image job accepted");
+    tracing::info!(job_id = %job.id, "process-image job accepted");
     Ok(())
 }
 
 async fn upload_to_storage(job: &JobEnvelope) -> anyhow::Result<()> {
-    tracing::info!(job_id = %job.id, payload = %job.payload, "upload-to-storage job accepted");
+    tracing::info!(job_id = %job.id, "upload-to-storage job accepted");
     Ok(())
 }
 
 async fn generate_thumbnail(job: &JobEnvelope) -> anyhow::Result<()> {
-    tracing::info!(job_id = %job.id, payload = %job.payload, "generate-thumbnail job accepted");
+    tracing::info!(job_id = %job.id, "generate-thumbnail job accepted");
     Ok(())
 }
 
@@ -115,7 +115,8 @@ async fn send_webhook(job: &JobEnvelope, db: &DatabaseConnection) -> anyhow::Res
         .get("fileId")
         .and_then(|value| value.as_str())
         .map(str::to_string);
-    let body = serde_json::to_vec(&job.payload)?;
+    let payload = webhook_payload(job);
+    let body = serde_json::to_vec(&payload)?;
     let signature = sign_payload(&secret, &body)?;
     let client = reqwest::Client::new();
     let result = client
@@ -216,7 +217,7 @@ async fn record_delivery(
     let request_json = json!({
         "jobId": record.job.id,
         "url": record.url,
-        "payload": record.job.payload,
+        "payload": webhook_payload(record.job),
     });
     let response_json = json!({ "body": record.response_body });
     let file_id = record.file_id.map(str::to_string);
@@ -269,13 +270,21 @@ fn sign_payload(secret: &str, body: &[u8]) -> anyhow::Result<String> {
 }
 
 async fn delete_file(job: &JobEnvelope) -> anyhow::Result<()> {
-    tracing::info!(job_id = %job.id, payload = %job.payload, "delete-file job accepted");
+    tracing::info!(job_id = %job.id, "delete-file job accepted");
     Ok(())
 }
 
 async fn cleanup_temp_file(job: &JobEnvelope) -> anyhow::Result<()> {
-    tracing::info!(job_id = %job.id, payload = %job.payload, "cleanup-temp-file job accepted");
+    tracing::info!(job_id = %job.id, "cleanup-temp-file job accepted");
     Ok(())
+}
+
+fn webhook_payload(job: &JobEnvelope) -> Value {
+    let mut payload = job.payload.clone();
+    if let Some(object) = payload.as_object_mut() {
+        object.remove("secret");
+    }
+    payload
 }
 
 fn init_tracing() {

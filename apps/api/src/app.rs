@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use axum::{
+    extract::DefaultBodyLimit,
     http::{header, HeaderValue, Method},
-    Router,
+    middleware, Router,
 };
 use filebase_migration::{Migrator, MigratorTrait};
 use tower::ServiceBuilder;
@@ -15,9 +16,9 @@ use tracing::Level;
 
 use crate::config::Config;
 use crate::db;
-use crate::middleware::{MakeUuidRequestId, REQUEST_ID_HEADER};
+use crate::middleware::{rate_limit, security_headers, MakeUuidRequestId, REQUEST_ID_HEADER};
 use crate::routes;
-use crate::state::AppState;
+use crate::state::{AppState, RateLimiter};
 
 pub struct BuiltApp {
     pub router: Router,
@@ -36,7 +37,9 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
         db,
         redis,
         config: Arc::new(config),
+        rate_limiter: Arc::new(RateLimiter::default()),
     };
+    let request_body_limit = usize::try_from(state.config.max_upload_size).unwrap_or(usize::MAX);
 
     let cors = CorsLayer::new()
         .allow_origin(dashboard_origin)
@@ -57,6 +60,12 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
 
     let middleware = ServiceBuilder::new()
         .layer(SetRequestIdLayer::new(REQUEST_ID_HEADER, MakeUuidRequestId))
+        .layer(DefaultBodyLimit::max(request_body_limit))
+        .layer(axum::middleware::from_fn(security_headers::apply))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            rate_limit::enforce,
+        ))
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(Level::INFO))

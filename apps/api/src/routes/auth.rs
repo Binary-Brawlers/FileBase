@@ -65,25 +65,27 @@ pub async fn login(
 
     let user = match found {
         Some(u) if password::verify(&payload.password, &u.password_hash) => u,
-        _ => return Err(ApiError::Unauthorized),
+        _ => {
+            tracing::warn!("audit.auth.login_failed");
+            return Err(ApiError::Unauthorized);
+        }
     };
 
     let token = issue_token(&state.config.jwt_secret, &user.id, &user.email)?;
+    tracing::info!(user_id = %user.id, "audit.auth.login_succeeded");
     let body = Json(json!({
         "data": LoginResponse {
             token: token.clone(),
             user: user.into(),
         }
     }));
-    let cookie = format!(
-        "{TOKEN_COOKIE}={token}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}",
-        TOKEN_TTL_HOURS * 3600
-    );
+    let cookie = session_cookie(&state, Some(&token), TOKEN_TTL_HOURS * 3600);
     Ok((StatusCode::OK, [(header::SET_COOKIE, cookie)], body).into_response())
 }
 
-pub async fn logout() -> Response {
-    let cookie = format!("{TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0");
+pub async fn logout(State(state): State<AppState>) -> Response {
+    tracing::info!("audit.auth.logout");
+    let cookie = session_cookie(&state, None, 0);
     (StatusCode::NO_CONTENT, [(header::SET_COOKIE, cookie)]).into_response()
 }
 
@@ -93,4 +95,14 @@ pub async fn me(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Resp
         .await?
         .ok_or(ApiError::Unauthorized)?;
     Ok(Json(json!({ "data": PublicUser::from(user) })).into_response())
+}
+
+fn session_cookie(state: &AppState, token: Option<&str>, max_age: i64) -> String {
+    let value = token.unwrap_or_default();
+    let secure = if state.config.app_url.starts_with("https://") {
+        "; Secure"
+    } else {
+        ""
+    };
+    format!("{TOKEN_COOKIE}={value}; Path=/; HttpOnly; SameSite=Lax; Max-Age={max_age}{secure}")
 }

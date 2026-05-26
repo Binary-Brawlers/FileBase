@@ -154,6 +154,14 @@ pub async fn initialize(
     let preset_model = build_preset(payload.preset, &project_id, &preset_id, &storage_id, now)?;
     preset_model.insert(&state.db).await?;
 
+    tracing::info!(
+        user_id = %user_id,
+        project_id = %project_id,
+        storage_connection_id = %storage_id,
+        upload_preset_id = %preset_id,
+        "audit.setup.initialized"
+    );
+
     Ok(Json(json!({
         "data": InitializeResponse {
             user_id,

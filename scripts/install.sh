@@ -163,6 +163,8 @@ LOCAL_STORAGE_PATH=/var/lib/filebase/uploads
 PUBLIC_BASE_URL=http://${ip}:${FILEBASE_HTTP_PORT}/uploads
 
 MAX_UPLOAD_SIZE=10485760
+AUTH_RATE_LIMIT_PER_MINUTE=10
+UPLOAD_RATE_LIMIT_PER_MINUTE=60
 DEFAULT_DUPLICATE_STRATEGY=return_existing
 
 FILEBASE_VERSION=${FILEBASE_VERSION}
@@ -199,6 +201,8 @@ services:
       - "${FILEBASE_HTTP_PORT:-8080}:8080"
     volumes:
       - ./data/uploads:/var/lib/filebase/uploads
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   worker:
@@ -211,6 +215,8 @@ services:
         condition: service_healthy
     volumes:
       - ./data/uploads:/var/lib/filebase/uploads
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   dashboard:
@@ -223,6 +229,8 @@ services:
       - api
     ports:
       - "${FILEBASE_DASHBOARD_PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   postgres:
@@ -243,6 +251,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

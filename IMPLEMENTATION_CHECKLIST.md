@@ -11,7 +11,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 - [x] Write Phase 14 documentation guides.
 
-Next code milestone is Phase 15 hardening before public MVP.
+Next code milestone is Phase 16 post-MVP expansion.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -224,18 +224,18 @@ Next code milestone is Phase 15 hardening before public MVP.
 
 ## Phase 15: Hardening Before Public MVP
 
-- [ ] Add rate limiting for auth and upload endpoints.
-- [ ] Add request body size limits.
-- [ ] Add secure default headers.
-- [ ] Add audit-worthy logging for sensitive actions.
-- [ ] Ensure credentials are never returned by API responses.
-- [ ] Ensure secrets are not logged.
-- [ ] Add integration tests for setup flow.
-- [ ] Add integration tests for auth flow.
-- [ ] Add integration tests for local uploads.
-- [ ] Add integration tests for duplicate detection.
-- [ ] Add basic load testing for upload endpoints.
-- [ ] Review Docker defaults for production safety.
+- [x] Add rate limiting for auth and upload endpoints.
+- [x] Add request body size limits.
+- [x] Add secure default headers.
+- [x] Add audit-worthy logging for sensitive actions.
+- [x] Ensure credentials are never returned by API responses.
+- [x] Ensure secrets are not logged.
+- [x] Add integration tests for setup flow.
+- [x] Add integration tests for auth flow.
+- [x] Add integration tests for local uploads.
+- [x] Add integration tests for duplicate detection.
+- [x] Add basic load testing for upload endpoints.
+- [x] Review Docker defaults for production safety.
 
 ## Phase 16: Post-MVP Expansion
 

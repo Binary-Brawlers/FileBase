@@ -143,6 +143,12 @@ pub async fn create(
     .await?;
 
     let signing_secret = inserted.secret.clone();
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %inserted.project_id,
+        webhook_id = %inserted.id,
+        "audit.webhook.created"
+    );
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -186,6 +192,7 @@ pub async fn update(
 ) -> ApiResult<Response> {
     let row = load_owned(&state, &auth.claims.sub, &id).await?;
     let mut active = row.into_active_model();
+    let secret_rotated = payload.secret.is_some();
     if let Some(url) = payload.url {
         active.url = Set(validate_url(&url)?);
     }
@@ -200,6 +207,13 @@ pub async fn update(
     }
     active.updated_at = Set(Utc::now().into());
     let saved = active.update(&state.db).await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %saved.project_id,
+        webhook_id = %saved.id,
+        secret_rotated,
+        "audit.webhook.updated"
+    );
     Ok(Json(json!({ "data": WebhookView::from(saved) })).into_response())
 }
 
@@ -209,9 +223,16 @@ pub async fn delete(
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
     let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let project_id = row.project_id.clone();
     webhook::Entity::delete_by_id(row.id)
         .exec(&state.db)
         .await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %project_id,
+        webhook_id = %id,
+        "audit.webhook.deleted"
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

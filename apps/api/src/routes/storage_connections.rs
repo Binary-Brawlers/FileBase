@@ -115,6 +115,13 @@ pub async fn create(
         now,
     )?;
     let inserted = model.insert(&state.db).await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %payload.project_id,
+        storage_connection_id = %inserted.id,
+        storage_type = %inserted.r#type,
+        "audit.storage_connection.created"
+    );
     Ok((
         StatusCode::CREATED,
         Json(json!({ "data": StorageConnectionView::from(inserted) })),
@@ -194,6 +201,12 @@ pub async fn update(
     active.updated_at = Set(Utc::now().into());
 
     let saved = active.update(&state.db).await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        storage_connection_id = %saved.id,
+        storage_type = %saved.r#type,
+        "audit.storage_connection.updated"
+    );
     Ok(Json(json!({ "data": StorageConnectionView::from(saved) })).into_response())
 }
 
@@ -203,9 +216,18 @@ pub async fn delete(
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
     let model = load_owned(&state, &auth.claims.sub, &id).await?;
+    let project_id = model.project_id.clone();
+    let storage_type = model.r#type.clone();
     storage_connection::Entity::delete_by_id(model.id)
         .exec(&state.db)
         .await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        storage_connection_id = %id,
+        project_id = %project_id,
+        storage_type = %storage_type,
+        "audit.storage_connection.deleted"
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -217,8 +239,23 @@ pub async fn test(
     let model = load_owned(&state, &auth.claims.sub, &id).await?;
     let adapter = storage_factory::build_adapter(&model, &state.config.encryption_key)?;
     let body = match adapter.health_check().await {
-        Ok(()) => json!({ "data": { "ok": true } }),
-        Err(e) => json!({ "data": { "ok": false, "message": e.to_string() } }),
+        Ok(()) => {
+            tracing::info!(
+                user_id = %auth.claims.sub,
+                storage_connection_id = %id,
+                "audit.storage_connection.test_succeeded"
+            );
+            json!({ "data": { "ok": true } })
+        }
+        Err(e) => {
+            tracing::warn!(
+                user_id = %auth.claims.sub,
+                storage_connection_id = %id,
+                error = %e,
+                "audit.storage_connection.test_failed"
+            );
+            json!({ "data": { "ok": false, "message": e.to_string() } })
+        }
     };
     Ok(Json(body).into_response())
 }

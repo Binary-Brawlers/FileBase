@@ -90,6 +90,14 @@ pub async fn create(
     .insert(&state.db)
     .await?;
 
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %inserted.project_id,
+        api_key_id = %inserted.id,
+        api_key_prefix = %inserted.prefix,
+        "audit.api_key.created"
+    );
+
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -129,6 +137,13 @@ pub async fn revoke(
     let mut active = model.into_active_model();
     active.revoked_at = Set(Some(Utc::now().into()));
     let saved = active.update(&state.db).await?;
+    tracing::info!(
+        user_id = %auth.claims.sub,
+        project_id = %saved.project_id,
+        api_key_id = %saved.id,
+        api_key_prefix = %saved.prefix,
+        "audit.api_key.revoked"
+    );
     Ok(Json(json!({ "data": ApiKeyView::from(saved) })).into_response())
 }
 

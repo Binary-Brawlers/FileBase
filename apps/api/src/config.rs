@@ -35,6 +35,8 @@ pub struct Config {
     pub local_storage_path: String,
     pub public_base_url: String,
     pub max_upload_size: u64,
+    pub auth_rate_limit_per_minute: usize,
+    pub upload_rate_limit_per_minute: usize,
     pub default_duplicate_strategy: DuplicateStrategy,
 }
 
@@ -89,6 +91,14 @@ impl Config {
             .unwrap_or_else(|| "10485760".to_string())
             .parse::<u64>()
             .map_err(|e| ConfigError::Invalid("MAX_UPLOAD_SIZE", e.to_string()))?;
+        let auth_rate_limit_per_minute = optional("AUTH_RATE_LIMIT_PER_MINUTE")
+            .unwrap_or_else(|| "10".to_string())
+            .parse::<usize>()
+            .map_err(|e| ConfigError::Invalid("AUTH_RATE_LIMIT_PER_MINUTE", e.to_string()))?;
+        let upload_rate_limit_per_minute = optional("UPLOAD_RATE_LIMIT_PER_MINUTE")
+            .unwrap_or_else(|| "60".to_string())
+            .parse::<usize>()
+            .map_err(|e| ConfigError::Invalid("UPLOAD_RATE_LIMIT_PER_MINUTE", e.to_string()))?;
 
         let default_duplicate_strategy = match optional("DEFAULT_DUPLICATE_STRATEGY")
             .unwrap_or_else(|| "return_existing".to_string())
@@ -120,6 +130,8 @@ impl Config {
             local_storage_path,
             public_base_url,
             max_upload_size,
+            auth_rate_limit_per_minute,
+            upload_rate_limit_per_minute,
             default_duplicate_strategy,
         })
     }

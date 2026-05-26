@@ -140,6 +140,14 @@ pub async fn sign(
     .insert(&state.db)
     .await?;
 
+    tracing::info!(
+        project_id = %project_id,
+        preset_id = %preset.id,
+        upload_session_id = %session_id,
+        expires_at = %expires_at.to_rfc3339(),
+        "audit.upload_session.created"
+    );
+
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -162,6 +170,7 @@ pub async fn direct_upload(
     multipart: Multipart,
 ) -> ApiResult<Response> {
     let key = authenticate_api_key(&state, &headers).await?;
+    let key_id = key.id.clone();
     let input = read_multipart(multipart, state.config.max_upload_size).await?;
     let project_id = input
         .project_id
@@ -201,6 +210,12 @@ pub async fn direct_upload(
             return Err(error);
         }
     };
+    tracing::info!(
+        project_id = %preset.project_id,
+        api_key_id = %key_id,
+        file_id = %result.id,
+        "audit.upload.direct_succeeded"
+    );
     Ok((StatusCode::CREATED, Json(json!({ "data": result }))).into_response())
 }
 
@@ -211,6 +226,7 @@ pub async fn session_upload(
     multipart: Multipart,
 ) -> ApiResult<Response> {
     let token = extract_bearer_or_key(&headers).ok_or(ApiError::Unauthorized)?;
+    let now = Utc::now();
     let session = upload_session::Entity::find_by_id(session_id)
         .one(&state.db)
         .await?
@@ -223,8 +239,23 @@ pub async fn session_upload(
             "upload session has already been used".into(),
         ));
     }
-    if session.expires_at < Utc::now().fixed_offset() {
+    if session.expires_at < now.fixed_offset() {
         return Err(ApiError::Unauthorized);
+    }
+    let reserved = upload_session::Entity::update_many()
+        .col_expr(
+            upload_session::Column::UsedAt,
+            sea_orm::sea_query::Expr::value(now),
+        )
+        .filter(upload_session::Column::Id.eq(session.id.clone()))
+        .filter(upload_session::Column::UsedAt.is_null())
+        .filter(upload_session::Column::ExpiresAt.gte(now.fixed_offset()))
+        .exec(&state.db)
+        .await?;
+    if reserved.rows_affected != 1 {
+        return Err(ApiError::Conflict(
+            "upload session has already been used".into(),
+        ));
     }
     let preset = upload_preset::Entity::find_by_id(session.preset_id.clone())
         .one(&state.db)
@@ -250,10 +281,12 @@ pub async fn session_upload(
             return Err(error);
         }
     };
-
-    let mut active = session.into_active_model();
-    active.used_at = Set(Some(Utc::now().into()));
-    active.update(&state.db).await?;
+    tracing::info!(
+        project_id = %preset.project_id,
+        upload_session_id = %session.id,
+        file_id = %result.id,
+        "audit.upload.session_succeeded"
+    );
 
     Ok((StatusCode::CREATED, Json(json!({ "data": result }))).into_response())
 }
@@ -289,6 +322,9 @@ async fn process_upload(
         &input.magic_bytes,
     )?;
     if let Some(session) = &session {
+        if session.project_id != preset.project_id || session.preset_id != preset.id {
+            return Err(ApiError::Forbidden);
+        }
         validate_mime(
             &session.allowed_mime_types,
             Some(&input_mime_type),
@@ -300,6 +336,10 @@ async fn process_upload(
             ));
         }
     }
+    let upload_folder = session
+        .as_ref()
+        .map(|session| session.folder.as_str())
+        .unwrap_or(&preset.folder);
 
     let original_bytes = fs::read(&input.temp_path)
         .await
@@ -407,7 +447,7 @@ async fn process_upload(
     let adapter = storage_factory::build_adapter(&connection, &state.config.encryption_key)?;
     let saved_name =
         generate_saved_name(&preset.filename_strategy, &original_name, &extension, &hash);
-    let path = join_relative(&preset.folder, &saved_name)?;
+    let path = join_relative(upload_folder, &saved_name)?;
     let uploaded = adapter
         .upload(UploadInput {
             path: path.clone(),
@@ -424,7 +464,7 @@ async fn process_upload(
     let mut original_metadata = json!(null);
     if let Some(original) = original_to_preserve {
         let original_name = format!("{saved_stem}-original.{}", original.extension);
-        let original_path = join_relative(&format!("{}/originals", preset.folder), &original_name)?;
+        let original_path = join_relative(&format!("{}/originals", upload_folder), &original_name)?;
         let original_uploaded = adapter
             .upload(UploadInput {
                 path: original_path,
@@ -446,7 +486,7 @@ async fn process_upload(
     if let Some(thumbnail) = thumbnail_to_upload {
         let thumbnail_name = format!("{saved_stem}-thumb.{}", thumbnail.extension);
         let thumbnail_path =
-            join_relative(&format!("{}/thumbnails", preset.folder), &thumbnail_name)?;
+            join_relative(&format!("{}/thumbnails", upload_folder), &thumbnail_name)?;
         let thumbnail_uploaded = adapter
             .upload(UploadInput {
                 path: thumbnail_path,
@@ -477,7 +517,7 @@ async fn process_upload(
         extension: Set(extension),
         size: Set(uploaded.size as i64),
         hash: Set(hash),
-        folder: Set(preset.folder.clone()),
+        folder: Set(upload_folder.to_string()),
         path: Set(uploaded.path),
         url: Set(uploaded.url),
         status: Set("uploaded".to_string()),
@@ -632,6 +672,7 @@ async fn read_multipart(
         let name = field.name().unwrap_or_default().to_string();
         if name == "file" {
             if temp_path.is_some() {
+                cleanup_optional_temp(&temp_path).await?;
                 return Err(ApiError::Validation(
                     "multipart request must contain one file field".into(),
                 ));
@@ -647,7 +688,14 @@ async fn read_multipart(
             let value = field
                 .text()
                 .await
-                .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+                .map_err(|e| ApiError::BadRequest(e.to_string()));
+            let value = match value {
+                Ok(value) => value,
+                Err(error) => {
+                    cleanup_optional_temp(&temp_path).await?;
+                    return Err(error);
+                }
+            };
             match name.as_str() {
                 "preset_id" => preset_id = Some(value),
                 "preset" => preset = Some(value),
@@ -675,6 +723,20 @@ async fn read_multipart(
         preset,
         project_id,
     })
+}
+
+async fn cleanup_optional_temp(temp_path: &Option<PathBuf>) -> Result<(), ApiError> {
+    if let Some(temp_path) = temp_path {
+        match fs::remove_file(temp_path).await {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(ApiError::Internal(anyhow::anyhow!(
+                "remove upload temp file: {e}"
+            ))),
+        }
+    } else {
+        Ok(())
+    }
 }
 
 struct StreamedFile {

@@ -10,7 +10,7 @@ services:
     image: ghcr.io/binary-brawlers/filebase-api:${FILEBASE_VERSION:-latest}
     env_file: .env
     environment:
-      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:-password}@postgres:5432/filebase
+      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/filebase
       REDIS_URL: redis://redis:6379
       LOCAL_STORAGE_PATH: /var/lib/filebase/uploads
     depends_on:
@@ -22,13 +22,15 @@ services:
       - "${API_PORT:-8080}:8080"
     volumes:
       - uploads_data:/var/lib/filebase/uploads
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   worker:
     image: ghcr.io/binary-brawlers/filebase-worker:${FILEBASE_VERSION:-latest}
     env_file: .env
     environment:
-      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:-password}@postgres:5432/filebase
+      DATABASE_URL: postgres://filebase:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/filebase
       REDIS_URL: redis://redis:6379
       LOCAL_STORAGE_PATH: /var/lib/filebase/uploads
     depends_on:
@@ -38,6 +40,8 @@ services:
         condition: service_healthy
     volumes:
       - uploads_data:/var/lib/filebase/uploads
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   dashboard:
@@ -50,13 +54,15 @@ services:
       - api
     ports:
       - "${DASHBOARD_PORT:-3000}:3000"
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: filebase
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: filebase
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -70,6 +76,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
