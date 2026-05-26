@@ -25,11 +25,22 @@ export type FileBaseOptions = {
 
 export type CreateUploadSessionOptions = FileBaseSignRequest;
 
+export type UploadProgress = {
+  loaded: number;
+  total: number;
+  /** 0..1, or `null` when total is unknown. */
+  fraction: number | null;
+};
+
 export type UploadFileOptions = FileBaseSignRequest & {
   /** Filename to send in the multipart part. */
   filename?: string;
   /** Content type to send. */
   contentType?: string;
+  /** Progress callback fired as bytes are written to the network. */
+  onProgress?: (progress: UploadProgress) => void;
+  /** AbortSignal to cancel the upload. */
+  signal?: AbortSignal;
 };
 
 export type ListFilesQuery = {
@@ -74,12 +85,32 @@ export class FileBase {
     options: UploadFileOptions = {}
   ): Promise<FileBaseUploadResult> {
     const blob = toBlob(file, options.contentType);
+    const fields: Record<string, string> = {};
+    if (options.preset) fields.preset = options.preset;
+    if (options.presetId) fields.preset_id = options.presetId;
+    if (options.projectId) fields.project_id = options.projectId;
+
+    if (options.onProgress) {
+      const { body, contentType } = await buildMultipart(
+        blob,
+        options.filename ?? "upload.bin",
+        fields
+      );
+      return this.request<FileBaseUploadResult>("POST", "/uploads", {
+        rawBody: progressStream(body, options.onProgress),
+        rawContentType: contentType,
+        contentLength: body.byteLength,
+        signal: options.signal,
+      });
+    }
+
     const form = new FormData();
     form.append("file", blob, options.filename ?? "upload.bin");
-    if (options.preset) form.append("preset", options.preset);
-    if (options.presetId) form.append("preset_id", options.presetId);
-    if (options.projectId) form.append("project_id", options.projectId);
-    return this.request<FileBaseUploadResult>("POST", "/uploads", { form });
+    for (const [k, v] of Object.entries(fields)) form.append(k, v);
+    return this.request<FileBaseUploadResult>("POST", "/uploads", {
+      form,
+      signal: options.signal,
+    });
   }
 
   async listFiles(query: ListFilesQuery = {}): Promise<FileBaseFile[]> {
@@ -97,7 +128,15 @@ export class FileBase {
   private async request<T>(
     method: string,
     path: string,
-    opts: { json?: unknown; form?: FormData; expectJson?: boolean } = {}
+    opts: {
+      json?: unknown;
+      form?: FormData;
+      rawBody?: ReadableStream<Uint8Array>;
+      rawContentType?: string;
+      contentLength?: number;
+      signal?: AbortSignal;
+      expectJson?: boolean;
+    } = {}
   ): Promise<T> {
     const url = `${this.gatewayUrl}${path}`;
     const headers: Record<string, string> = {
@@ -109,13 +148,29 @@ export class FileBase {
     if (opts.json !== undefined) {
       headers["content-type"] = "application/json";
       body = JSON.stringify(opts.json);
+    } else if (opts.rawBody) {
+      if (opts.rawContentType) headers["content-type"] = opts.rawContentType;
+      if (opts.contentLength !== undefined) {
+        headers["content-length"] = String(opts.contentLength);
+      }
+      body = opts.rawBody;
     } else if (opts.form) {
       body = opts.form;
     }
     let response: Response;
     try {
-      response = await this.fetchImpl(url, { method, headers, body });
+      const init: RequestInit & { duplex?: "half" } = {
+        method,
+        headers,
+        body,
+        signal: opts.signal,
+      };
+      if (opts.rawBody) init.duplex = "half";
+      response = await this.fetchImpl(url, init);
     } catch (cause) {
+      if (opts.signal?.aborted) {
+        throw new FileBaseError("aborted", `request to ${path} was aborted`, { cause });
+      }
       throw new FileBaseError("network_error", `request to ${path} failed`, { cause });
     }
     if (!response.ok) {
@@ -166,6 +221,64 @@ function buildQuery(query: Record<string, string | undefined>): string {
   }
   const s = params.toString();
   return s ? `?${s}` : "";
+}
+
+async function buildMultipart(
+  blob: Blob,
+  filename: string,
+  fields: Record<string, string>
+): Promise<{ body: Uint8Array; contentType: string }> {
+  const boundary = `----FileBaseBoundary${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+  const enc = new TextEncoder();
+  const parts: Uint8Array[] = [];
+  for (const [k, v] of Object.entries(fields)) {
+    parts.push(
+      enc.encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`
+      )
+    );
+  }
+  parts.push(
+    enc.encode(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename.replace(/"/g, "%22")}"\r\nContent-Type: ${blob.type || "application/octet-stream"}\r\n\r\n`
+    )
+  );
+  parts.push(new Uint8Array(await blob.arrayBuffer()));
+  parts.push(enc.encode(`\r\n--${boundary}--\r\n`));
+
+  const total = parts.reduce((n, p) => n + p.byteLength, 0);
+  const body = new Uint8Array(total);
+  let offset = 0;
+  for (const p of parts) {
+    body.set(p, offset);
+    offset += p.byteLength;
+  }
+  return { body, contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+function progressStream(
+  body: Uint8Array,
+  onProgress: (progress: UploadProgress) => void,
+  chunkSize = 64 * 1024
+): ReadableStream<Uint8Array> {
+  let offset = 0;
+  const total = body.byteLength;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (offset >= total) {
+        controller.close();
+        return;
+      }
+      const end = Math.min(offset + chunkSize, total);
+      controller.enqueue(body.subarray(offset, end));
+      offset = end;
+      onProgress({
+        loaded: offset,
+        total,
+        fraction: total > 0 ? offset / total : null,
+      });
+    },
+  });
 }
 
 async function readErrorBody(response: Response): Promise<unknown> {
