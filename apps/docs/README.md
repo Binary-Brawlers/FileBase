@@ -17,3 +17,4 @@ User-facing documentation for FileBase. Until a docs site framework is selected,
 11. [Troubleshooting](./content/guides/11-troubleshooting.md) — common failure modes and how to diagnose them.
 12. [Security Recommendations](./content/guides/12-security.md) — hardening checklist for production deployments.
 13. [S3 & S3-Compatible Storage](./content/guides/13-s3-storage.md) — AWS S3, Cloudflare R2, Spaces, B2, and Wasabi.
+14. [Folders & Upload Logs](./content/guides/14-folders-and-upload-logs.md) — browse nested upload folders and investigate upload activity.

@@ -10,6 +10,7 @@ import {
   type CreateUploadPresetRequest,
   type FileFilters,
   type InitializeRequest,
+  type UploadLogFilters,
   type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
   type UpdateUploadPresetRequest,
@@ -25,9 +26,13 @@ export const queryKeys = {
   uploadPresets: ["upload-presets"] as const,
   apiKeys: ["api-keys"] as const,
   files: (filters?: FileFilters) => ["files", filters ?? {}] as const,
+  folders: (projectId?: string) => ["folders", projectId ?? "all"] as const,
   fileLogs: (id?: string | null) => ["files", id, "logs"] as const,
+  uploadLogs: (filters?: UploadLogFilters) =>
+    ["upload-logs", filters ?? {}] as const,
   webhooks: ["webhooks"] as const,
-  webhookDeliveries: (id?: string | null) => ["webhooks", id, "deliveries"] as const,
+  webhookDeliveries: (id?: string | null) =>
+    ["webhooks", id, "deliveries"] as const,
 };
 
 export function useSetupStatus() {
@@ -80,7 +85,8 @@ export function useProjects() {
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateProjectRequest) => api.createProject(body, getToken()),
+    mutationFn: (body: CreateProjectRequest) =>
+      api.createProject(body, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
   });
 }
@@ -159,17 +165,29 @@ export function useUploadPresets() {
 export function useCreateUploadPreset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateUploadPresetRequest) => api.createUploadPreset(body, getToken()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+    mutationFn: (body: CreateUploadPresetRequest) =>
+      api.createUploadPreset(body, getToken()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.uploadPresets });
+      qc.invalidateQueries({ queryKey: ["folders"] });
+    },
   });
 }
 
 export function useUpdateUploadPreset() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateUploadPresetRequest }) =>
-      api.updateUploadPreset(id, body, getToken()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+    mutationFn: ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: UpdateUploadPresetRequest;
+    }) => api.updateUploadPreset(id, body, getToken()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.uploadPresets });
+      qc.invalidateQueries({ queryKey: ["folders"] });
+    },
   });
 }
 
@@ -177,7 +195,10 @@ export function useDeleteUploadPreset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteUploadPreset(id, getToken()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.uploadPresets }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.uploadPresets });
+      qc.invalidateQueries({ queryKey: ["folders"] });
+    },
   });
 }
 
@@ -191,7 +212,8 @@ export function useApiKeys() {
 export function useCreateApiKey() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateApiKeyRequest) => api.createApiKey(body, getToken()),
+    mutationFn: (body: CreateApiKeyRequest) =>
+      api.createApiKey(body, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.apiKeys }),
   });
 }
@@ -211,6 +233,13 @@ export function useFiles(filters?: FileFilters) {
   });
 }
 
+export function useFolders(projectId?: string) {
+  return useQuery({
+    queryKey: queryKeys.folders(projectId),
+    queryFn: () => api.listFolders(projectId, getToken()),
+  });
+}
+
 export function useFileLogs(id?: string | null) {
   return useQuery({
     queryKey: queryKeys.fileLogs(id),
@@ -219,11 +248,22 @@ export function useFileLogs(id?: string | null) {
   });
 }
 
+export function useUploadLogs(filters?: UploadLogFilters) {
+  return useQuery({
+    queryKey: queryKeys.uploadLogs(filters),
+    queryFn: () => api.listUploadLogs(filters, getToken()),
+  });
+}
+
 export function useDeleteFile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => api.deleteFile(id, getToken()),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["files"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["files"] });
+      qc.invalidateQueries({ queryKey: ["folders"] });
+      qc.invalidateQueries({ queryKey: ["upload-logs"] });
+    },
   });
 }
 
@@ -237,7 +277,8 @@ export function useWebhooks() {
 export function useCreateWebhook() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateWebhookRequest) => api.createWebhook(body, getToken()),
+    mutationFn: (body: CreateWebhookRequest) =>
+      api.createWebhook(body, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.webhooks }),
   });
 }

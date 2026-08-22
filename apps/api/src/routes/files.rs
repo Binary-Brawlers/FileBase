@@ -5,13 +5,14 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, Utc};
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::entities::{file, project, storage_connection, upload_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::routes::upload_logs::{self, UploadLogView};
 use crate::services::{storage_factory, webhooks};
 use crate::state::AppState;
 
@@ -19,6 +20,7 @@ use crate::state::AppState;
 pub struct ListQuery {
     pub project_id: Option<String>,
     pub search: Option<String>,
+    pub folder: Option<String>,
     pub mime_type: Option<String>,
     pub from: Option<String>,
     pub to: Option<String>,
@@ -45,18 +47,6 @@ pub struct FileView {
     pub updated_at: String,
 }
 
-#[derive(Debug, Serialize)]
-pub struct UploadLogView {
-    pub id: String,
-    pub project_id: String,
-    pub file_id: Option<String>,
-    pub event: String,
-    pub status: String,
-    pub message: Option<String>,
-    pub metadata: serde_json::Value,
-    pub created_at: String,
-}
-
 impl From<file::Model> for FileView {
     fn from(m: file::Model) -> Self {
         Self {
@@ -77,21 +67,6 @@ impl From<file::Model> for FileView {
             metadata: m.metadata_json,
             created_at: m.created_at.to_rfc3339(),
             updated_at: m.updated_at.to_rfc3339(),
-        }
-    }
-}
-
-impl From<upload_log::Model> for UploadLogView {
-    fn from(m: upload_log::Model) -> Self {
-        Self {
-            id: m.id,
-            project_id: m.project_id,
-            file_id: m.file_id,
-            event: m.event,
-            status: m.status,
-            message: m.message,
-            metadata: m.metadata_json,
-            created_at: m.created_at.to_rfc3339(),
         }
     }
 }
@@ -119,6 +94,13 @@ pub async fn list(
     }
     if let Some(mime_type) = query.mime_type.as_deref().filter(|v| !v.is_empty()) {
         db_query = db_query.filter(file::Column::MimeType.eq(mime_type.to_string()));
+    }
+    if let Some(folder) = normalize_folder_filter(query.folder.as_deref())? {
+        db_query = db_query.filter(
+            Condition::any()
+                .add(file::Column::Folder.eq(folder.clone()))
+                .add(file::Column::Folder.starts_with(format!("{folder}/"))),
+        );
     }
     if let Some(from) = parse_date_filter(query.from.as_deref())? {
         db_query = db_query.filter(file::Column::CreatedAt.gte(from));
@@ -172,10 +154,25 @@ pub async fn delete(
     file::Entity::delete_by_id(model.id.clone())
         .exec(&state.db)
         .await?;
+    upload_logs::record(
+        &state,
+        &model.project_id,
+        None,
+        "file.deleted",
+        "success",
+        None,
+        json!({
+            "fileId": model.id,
+            "originalName": model.original_name,
+            "path": model.path,
+            "url": model.url,
+        }),
+    )
+    .await?;
     webhooks::emit_file_event(
         &state,
         &model.project_id,
-        Some(&model.id),
+        None,
         "file.deleted",
         json!({
             "fileId": model.id,
@@ -200,7 +197,11 @@ pub async fn logs(
         .order_by_desc(upload_log::Column::CreatedAt)
         .all(&state.db)
         .await?;
-    let view: Vec<UploadLogView> = rows.into_iter().map(UploadLogView::from).collect();
+    let file_name = model.original_name;
+    let view: Vec<UploadLogView> = rows
+        .into_iter()
+        .map(|row| UploadLogView::from_model(row, Some(file_name.clone())))
+        .collect();
     Ok(Json(json!({ "data": view })).into_response())
 }
 
@@ -217,7 +218,7 @@ async fn load_owned_file(
     Ok(model)
 }
 
-async fn ensure_project_owner(
+pub(crate) async fn ensure_project_owner(
     state: &AppState,
     user_id: &str,
     project_id: &str,
@@ -232,7 +233,10 @@ async fn ensure_project_owner(
     Ok(())
 }
 
-async fn owned_project_ids(state: &AppState, user_id: &str) -> Result<Vec<String>, ApiError> {
+pub(crate) async fn owned_project_ids(
+    state: &AppState,
+    user_id: &str,
+) -> Result<Vec<String>, ApiError> {
     let projects = project::Entity::find()
         .filter(project::Column::UserId.eq(user_id.to_string()))
         .all(&state.db)
@@ -240,11 +244,29 @@ async fn owned_project_ids(state: &AppState, user_id: &str) -> Result<Vec<String
     Ok(projects.into_iter().map(|p| p.id).collect())
 }
 
-fn parse_date_filter(value: Option<&str>) -> Result<Option<DateTime<Utc>>, ApiError> {
+pub(crate) fn parse_date_filter(value: Option<&str>) -> Result<Option<DateTime<Utc>>, ApiError> {
     let Some(value) = value.map(str::trim).filter(|v| !v.is_empty()) else {
         return Ok(None);
     };
     let dt = DateTime::parse_from_rfc3339(value)
         .map_err(|_| ApiError::Validation("date filters must be RFC3339 timestamps".into()))?;
     Ok(Some(dt.with_timezone(&Utc)))
+}
+
+fn normalize_folder_filter(value: Option<&str>) -> Result<Option<String>, ApiError> {
+    let Some(value) = value
+        .map(str::trim)
+        .map(|value| value.trim_matches('/'))
+        .filter(|value| !value.is_empty())
+    else {
+        return Ok(None);
+    };
+    if value.contains('\\')
+        || value.split('/').any(|part| {
+            part.is_empty() || part == "." || part == ".." || part.chars().any(char::is_control)
+        })
+    {
+        return Err(ApiError::Validation("folder filter is invalid".into()));
+    }
+    Ok(Some(value.to_string()))
 }

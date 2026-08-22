@@ -6,6 +6,7 @@ import {
   Copy,
   ExternalLink,
   FileSearch,
+  Folder,
   FolderOpen,
   Info,
   Search,
@@ -25,6 +26,7 @@ import {
   useDeleteFile,
   useFileLogs,
   useFiles,
+  useFolders,
   useProjects,
 } from "../../../lib/queries";
 
@@ -33,6 +35,7 @@ export function FilesPage() {
   const remove = useDeleteFile();
   const [projectId, setProjectId] = useState("");
   const [search, setSearch] = useState("");
+  const [folder, setFolder] = useState("");
   const [mimeType, setMimeType] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -42,16 +45,21 @@ export function FilesPage() {
   const filters: FileFilters = {
     project_id: projectId || undefined,
     search: deferredSearch || undefined,
+    folder: folder || undefined,
     mime_type: mimeType || undefined,
     from: from ? new Date(`${from}T00:00:00`).toISOString() : undefined,
     to: to ? new Date(`${to}T23:59:59`).toISOString() : undefined,
   };
   const files = useFiles(filters);
+  const folders = useFolders(projectId || undefined);
   const logs = useFileLogs(selected?.id);
-  const mimeTypes = Array.from(new Set(files.data?.map((file) => file.mime_type) ?? [])).sort();
+  const mimeTypes = Array.from(
+    new Set(files.data?.map((file) => file.mime_type) ?? []),
+  ).sort();
 
   async function onDelete(file: FileRecord) {
-    if (!confirm(`Delete ${file.original_name} from storage and FileBase?`)) return;
+    if (!confirm(`Delete ${file.original_name} from storage and FileBase?`))
+      return;
     setError(null);
     try {
       await remove.mutateAsync(file.id);
@@ -71,6 +79,67 @@ export function FilesPage() {
 
       {error && <Alert message={error} />}
 
+      <section className="rounded-3xl border border-default-200 bg-background p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">Folders</h2>
+            <p className="text-sm text-default-500">
+              Browse preset folders and everything stored below them.
+            </p>
+          </div>
+          {folder && (
+            <Button size="sm" variant="tertiary" onPress={() => setFolder("")}>
+              Show all files
+            </Button>
+          )}
+        </div>
+        {folders.isPending ? (
+          <div className="pt-4">
+            <LoadingBlock />
+          </div>
+        ) : !folders.data?.length ? (
+          <p className="mt-4 text-sm text-default-500">
+            Folders appear when a preset targets one or a file is uploaded.
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {folders.data.map((item) => {
+              const active =
+                projectId === item.project_id && folder === item.path;
+              const project = projects.data?.find(
+                (candidate) => candidate.id === item.project_id,
+              );
+              return (
+                <button
+                  key={`${item.project_id}:${item.path}`}
+                  type="button"
+                  onClick={() => {
+                    setProjectId(item.project_id);
+                    setFolder(item.path);
+                  }}
+                  className={`flex items-start gap-3 rounded-2xl border p-3 text-left transition ${
+                    active
+                      ? "border-accent bg-accent/5 ring-2 ring-accent/15"
+                      : "border-default-100 bg-default-50 hover:border-accent/40"
+                  }`}
+                >
+                  <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">
+                      {item.path}
+                    </span>
+                    <span className="mt-1 block text-xs text-default-500">
+                      {!projectId && project ? `${project.name} · ` : ""}
+                      {item.file_count} files · {formatBytes(item.total_size)}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <section className="grid gap-3 rounded-3xl border border-default-200 bg-background p-4 shadow-sm lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
         <FieldShell label="Search">
           <div className="relative">
@@ -84,26 +153,47 @@ export function FilesPage() {
           </div>
         </FieldShell>
         <FieldShell label="Project">
-          <NativeSelect value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+          <NativeSelect
+            value={projectId}
+            onChange={(e) => {
+              setProjectId(e.target.value);
+              setFolder("");
+            }}
+          >
             <option value="">All projects</option>
             {projects.data?.map((project) => (
-              <option key={project.id} value={project.id}>{project.name}</option>
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
             ))}
           </NativeSelect>
         </FieldShell>
         <FieldShell label="MIME type">
-          <NativeSelect value={mimeType} onChange={(e) => setMimeType(e.target.value)}>
+          <NativeSelect
+            value={mimeType}
+            onChange={(e) => setMimeType(e.target.value)}
+          >
             <option value="">All types</option>
             {mimeTypes.map((type) => (
-              <option key={type} value={type}>{type}</option>
+              <option key={type} value={type}>
+                {type}
+              </option>
             ))}
           </NativeSelect>
         </FieldShell>
         <FieldShell label="From">
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input
+            type="date"
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
         </FieldShell>
         <FieldShell label="To">
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
         </FieldShell>
       </section>
 
@@ -139,11 +229,17 @@ export function FilesPage() {
               <Info className="h-8 w-8 text-default-400" />
               <div>
                 <h2 className="font-semibold">Select a file</h2>
-                <p className="mt-1 text-sm text-default-500">Metadata and upload logs will show here.</p>
+                <p className="mt-1 text-sm text-default-500">
+                  Metadata and upload logs will show here.
+                </p>
               </div>
             </div>
           ) : (
-            <FileDetails file={selected} logs={logs.data ?? []} logsLoading={logs.isPending} />
+            <FileDetails
+              file={selected}
+              logs={logs.data ?? []}
+              logsLoading={logs.isPending}
+            />
           )}
         </aside>
       </section>
@@ -165,30 +261,65 @@ function FileCard({
   deleting: boolean;
 }) {
   return (
-    <article className={`rounded-3xl border bg-background p-4 shadow-sm transition ${selected ? "border-accent ring-2 ring-accent/15" : "border-default-200 hover:border-accent/40"}`}>
+    <article
+      className={`rounded-3xl border bg-background p-4 shadow-sm transition ${selected ? "border-accent ring-2 ring-accent/15" : "border-default-200 hover:border-accent/40"}`}
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+        >
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
             <FolderOpen className="h-5 w-5" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-semibold">{file.original_name}</span>
-            <span className="mt-1 block truncate font-mono text-xs text-default-400">{file.path}</span>
+            <span className="block truncate font-semibold">
+              {file.original_name}
+            </span>
+            <span className="mt-1 block truncate font-mono text-xs text-default-400">
+              {file.path}
+            </span>
             <span className="mt-2 flex flex-wrap gap-2">
-              <Chip size="sm" variant="soft">{file.mime_type}</Chip>
-              <Chip size="sm" variant="soft" color={file.status === "uploaded" ? "success" : "default"}>{file.status}</Chip>
-              <Chip size="sm" variant="soft">{formatBytes(file.size)}</Chip>
+              <Chip size="sm" variant="soft">
+                {file.mime_type}
+              </Chip>
+              <Chip
+                size="sm"
+                variant="soft"
+                color={file.status === "uploaded" ? "success" : "default"}
+              >
+                {file.status}
+              </Chip>
+              <Chip size="sm" variant="soft">
+                {formatBytes(file.size)}
+              </Chip>
             </span>
           </span>
         </button>
         <div className="flex flex-wrap gap-2 md:justify-end">
-          <Button size="sm" variant="tertiary" onPress={() => navigator.clipboard?.writeText(file.url)}>
+          <Button
+            size="sm"
+            variant="tertiary"
+            onPress={() => navigator.clipboard?.writeText(file.url)}
+          >
             <Copy className="h-3.5 w-3.5" /> Copy URL
           </Button>
-          <Button size="sm" variant="tertiary" onPress={() => window.open(file.url, "_blank", "noopener,noreferrer")}>
+          <Button
+            size="sm"
+            variant="tertiary"
+            onPress={() =>
+              window.open(file.url, "_blank", "noopener,noreferrer")
+            }
+          >
             <ExternalLink className="h-3.5 w-3.5" /> Open
           </Button>
-          <Button size="sm" variant="danger-soft" onPress={onDelete} isPending={deleting}>
+          <Button
+            size="sm"
+            variant="danger-soft"
+            onPress={onDelete}
+            isPending={deleting}
+          >
             <Trash2 className="h-3.5 w-3.5" /> Delete
           </Button>
         </div>
@@ -203,22 +334,40 @@ function FileDetails({
   logsLoading,
 }: {
   file: FileRecord;
-  logs: { id: string; event: string; status: string; message: string | null; created_at: string }[];
+  logs: {
+    id: string;
+    event: string;
+    status: string;
+    message: string | null;
+    created_at: string;
+  }[];
   logsLoading: boolean;
 }) {
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="truncate text-lg font-semibold">{file.original_name}</h2>
-        <p className="mt-1 break-all font-mono text-xs text-default-400">{file.id}</p>
+        <p className="mt-1 break-all font-mono text-xs text-default-400">
+          {file.id}
+        </p>
       </div>
       <dl className="grid gap-3 text-sm">
         <InfoRow label="Public URL" value={file.url} mono />
         <InfoRow label="Path" value={file.path} mono />
         <InfoRow label="Hash" value={file.hash} mono />
-        <InfoRow label="Storage connection" value={file.storage_connection_id} mono />
-        <InfoRow label="Created" value={new Date(file.created_at).toLocaleString()} />
-        <InfoRow label="Updated" value={new Date(file.updated_at).toLocaleString()} />
+        <InfoRow
+          label="Storage connection"
+          value={file.storage_connection_id}
+          mono
+        />
+        <InfoRow
+          label="Created"
+          value={new Date(file.created_at).toLocaleString()}
+        />
+        <InfoRow
+          label="Updated"
+          value={new Date(file.updated_at).toLocaleString()}
+        />
       </dl>
       <div className="border-t border-default-100 pt-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -227,17 +376,32 @@ function FileDetails({
         {logsLoading ? (
           <LoadingBlock />
         ) : !logs.length ? (
-          <p className="text-sm text-default-500">No logs recorded for this file.</p>
+          <p className="text-sm text-default-500">
+            No logs recorded for this file.
+          </p>
         ) : (
           <div className="grid gap-2">
             {logs.map((log) => (
-              <div key={log.id} className="rounded-2xl border border-default-100 bg-default-50 p-3 text-sm">
+              <div
+                key={log.id}
+                className="rounded-2xl border border-default-100 bg-default-50 p-3 text-sm"
+              >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-medium">{log.event}</span>
-                  <Chip size="sm" variant="soft" color={log.status === "success" ? "success" : "default"}>{log.status}</Chip>
+                  <Chip
+                    size="sm"
+                    variant="soft"
+                    color={log.status === "success" ? "success" : "default"}
+                  >
+                    {log.status}
+                  </Chip>
                 </div>
-                <p className="mt-1 text-xs text-default-500">{new Date(log.created_at).toLocaleString()}</p>
-                {log.message && <p className="mt-2 text-sm text-default-600">{log.message}</p>}
+                <p className="mt-1 text-xs text-default-500">
+                  {new Date(log.created_at).toLocaleString()}
+                </p>
+                {log.message && (
+                  <p className="mt-2 text-sm text-default-600">{log.message}</p>
+                )}
               </div>
             ))}
           </div>
@@ -247,11 +411,25 @@ function FileDetails({
   );
 }
 
-function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="rounded-2xl border border-default-100 bg-default-50 p-3">
-      <dt className="text-xs font-medium uppercase tracking-wide text-default-500">{label}</dt>
-      <dd className={`mt-1 break-all text-default-800 ${mono ? "font-mono text-xs" : "text-sm"}`}>{value}</dd>
+      <dt className="text-xs font-medium uppercase tracking-wide text-default-500">
+        {label}
+      </dt>
+      <dd
+        className={`mt-1 break-all text-default-800 ${mono ? "font-mono text-xs" : "text-sm"}`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }

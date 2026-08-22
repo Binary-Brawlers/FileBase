@@ -1,10 +1,12 @@
 pub mod api_keys;
 pub mod auth;
 pub mod files;
+pub mod folders;
 pub mod health;
 pub mod projects;
 pub mod setup;
 pub mod storage_connections;
+pub mod upload_logs;
 pub mod upload_presets;
 pub mod uploads;
 pub mod webhooks;
@@ -63,8 +65,10 @@ pub fn router() -> Router<AppState> {
         .route("/uploads", post(uploads::direct_upload))
         .route("/uploads/:session_id", post(uploads::session_upload))
         .route("/files", get(files::list))
+        .route("/folders", get(folders::list))
         .route("/files/:id", get(files::get).delete(files::delete))
         .route("/files/:id/logs", get(files::logs))
+        .route("/upload-logs", get(upload_logs::list))
         .route("/webhooks", get(webhooks::list).post(webhooks::create))
         .route(
             "/webhooks/:id",

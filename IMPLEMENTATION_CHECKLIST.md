@@ -11,7 +11,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 - [x] Write Phase 14 documentation guides.
 
-Next code milestone is Phase 16 post-MVP expansion.
+Next code milestone is Phase 16 advanced analytics.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -172,7 +172,7 @@ Next code milestone is Phase 16 post-MVP expansion.
 - [x] Implement `@binary-brawlers/filebase-next` route helpers.
 - [x] Implement `@binary-brawlers/filebase-node` admin client.
 - [x] Add React Native SDK in the post-MVP developer-experience phase.
-- [ ] Add Vue SDK in the post-MVP developer-experience phase.
+- [x] Add Vue SDK in the post-MVP developer-experience phase.
 
 ## Phase 12: One-Command Installer
 
@@ -241,8 +241,8 @@ Next code milestone is Phase 16 post-MVP expansion.
 
 - [x] Add React Native SDK.
 - [x] Add Vue SDK.
-- [ ] Add folder management.
-- [ ] Add improved upload logs.
+- [x] Add folder management.
+- [x] Add improved upload logs.
 - [x] Add S3 adapter.
 - [x] Add Cloudflare R2 adapter.
 - [x] Add DigitalOcean Spaces adapter.

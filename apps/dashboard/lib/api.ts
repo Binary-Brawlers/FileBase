@@ -5,7 +5,11 @@ export type ApiErrorBody = {
 };
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -91,7 +95,10 @@ export type InitializeRequest = {
     allowed_mime_types?: string[];
     allowed_extensions?: string[];
     max_file_size?: number;
-    duplicate_strategy?: "return_existing" | "upload_new_copy" | "reject_duplicate";
+    duplicate_strategy?:
+      | "return_existing"
+      | "upload_new_copy"
+      | "reject_duplicate";
     filename_strategy?: string;
     transformations?: Record<string, unknown>;
   };
@@ -168,7 +175,10 @@ export type UploadPreset = {
   allowed_mime_types: string[];
   allowed_extensions: string[];
   max_file_size: number;
-  duplicate_strategy: "return_existing" | "upload_new_copy" | "reject_duplicate";
+  duplicate_strategy:
+    | "return_existing"
+    | "upload_new_copy"
+    | "reject_duplicate";
   filename_strategy: string;
   transformations: Record<string, unknown>;
   created_at: string;
@@ -234,6 +244,7 @@ export type UploadLog = {
   id: string;
   project_id: string;
   file_id: string | null;
+  file_name: string | null;
   event: string;
   status: string;
   message: string | null;
@@ -268,7 +279,9 @@ export type CreateWebhookRequest = {
   is_active?: boolean;
 };
 
-export type UpdateWebhookRequest = Partial<Omit<CreateWebhookRequest, "project_id">>;
+export type UpdateWebhookRequest = Partial<
+  Omit<CreateWebhookRequest, "project_id">
+>;
 
 export type WebhookDeliveryLog = {
   id: string;
@@ -288,15 +301,41 @@ export type WebhookDeliveryLog = {
 export type FileFilters = {
   project_id?: string;
   search?: string;
+  folder?: string;
   mime_type?: string;
   from?: string;
   to?: string;
 };
 
-function queryString(filters?: FileFilters) {
+export type FolderRecord = {
+  project_id: string;
+  path: string;
+  name: string;
+  parent: string | null;
+  file_count: number;
+  direct_file_count: number;
+  total_size: number;
+  preset_count: number;
+  latest_upload_at: string | null;
+};
+
+export type UploadLogFilters = {
+  project_id?: string;
+  file_id?: string;
+  event?: string;
+  status?: string;
+  search?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+};
+
+function queryString(filters?: object) {
   const params = new URLSearchParams();
   Object.entries(filters ?? {}).forEach(([key, value]) => {
-    if (value) params.set(key, value);
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
   });
   const qs = params.toString();
   return qs ? `?${qs}` : "";
@@ -313,8 +352,7 @@ export const api = {
       body: { email, password },
     }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
-  me: (token?: string | null) =>
-    request<CurrentUser>("/auth/me", { token }),
+  me: (token?: string | null) => request<CurrentUser>("/auth/me", { token }),
   listProjects: (token?: string | null) =>
     request<Project[]>("/projects", { token }),
   createProject: (body: CreateProjectRequest, token?: string | null) =>
@@ -356,13 +394,21 @@ export const api = {
     }),
   listUploadPresets: (token?: string | null) =>
     request<UploadPreset[]>("/upload-presets", { token }),
-  createUploadPreset: (body: CreateUploadPresetRequest, token?: string | null) =>
+  createUploadPreset: (
+    body: CreateUploadPresetRequest,
+    token?: string | null,
+  ) =>
     request<UploadPreset>("/upload-presets", { method: "POST", body, token }),
   updateUploadPreset: (
     id: string,
     body: UpdateUploadPresetRequest,
     token?: string | null,
-  ) => request<UploadPreset>(`/upload-presets/${id}`, { method: "PATCH", body, token }),
+  ) =>
+    request<UploadPreset>(`/upload-presets/${id}`, {
+      method: "PATCH",
+      body,
+      token,
+    }),
   deleteUploadPreset: (id: string, token?: string | null) =>
     request<void>(`/upload-presets/${id}`, { method: "DELETE", token }),
   listApiKeys: (token?: string | null) =>
@@ -373,12 +419,19 @@ export const api = {
     request<ApiKey>(`/api-keys/${id}/revoke`, { method: "PATCH", token }),
   listFiles: (filters?: FileFilters, token?: string | null) =>
     request<FileRecord[]>(`/files${queryString(filters)}`, { token }),
+  listFolders: (projectId?: string, token?: string | null) =>
+    request<FolderRecord[]>(
+      `/folders${queryString({ project_id: projectId })}`,
+      { token },
+    ),
   getFile: (id: string, token?: string | null) =>
     request<FileRecord>(`/files/${id}`, { token }),
   deleteFile: (id: string, token?: string | null) =>
     request<void>(`/files/${id}`, { method: "DELETE", token }),
   getFileLogs: (id: string, token?: string | null) =>
     request<UploadLog[]>(`/files/${id}/logs`, { token }),
+  listUploadLogs: (filters?: UploadLogFilters, token?: string | null) =>
+    request<UploadLog[]>(`/upload-logs${queryString(filters)}`, { token }),
   listWebhooks: (token?: string | null) =>
     request<Webhook[]>("/webhooks", { token }),
   createWebhook: (body: CreateWebhookRequest, token?: string | null) =>
