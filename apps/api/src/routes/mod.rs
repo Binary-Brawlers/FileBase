@@ -28,6 +28,7 @@ pub fn router() -> Router<AppState> {
         .route("/setup/status", get(setup::status))
         .route("/setup/initialize", post(setup::initialize))
         .route("/auth/login", post(auth::login))
+        .route("/auth/register", post(auth::register))
         .route("/auth/logout", post(auth::logout))
         .route("/auth/me", get(auth::me))
         .route(

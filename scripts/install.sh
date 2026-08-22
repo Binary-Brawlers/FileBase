@@ -147,6 +147,9 @@ write_env() {
 APP_URL=http://${ip}:${FILEBASE_HTTP_PORT}
 DASHBOARD_URL=http://${ip}:${FILEBASE_DASHBOARD_PORT}
 
+DEPLOYMENT_MODE=self_hosted
+PUBLIC_REGISTRATION_ENABLED=false
+
 DATABASE_URL=postgres://filebase:${db_password}@postgres:5432/filebase
 DATABASE_MAX_CONNECTIONS=10
 DATABASE_MIN_CONNECTIONS=1

@@ -11,43 +11,46 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiError } from "../../lib/api";
 import { setToken } from "../../lib/auth";
-import { useLogin } from "../../lib/queries";
-import { ThemeToggle } from "../../components/ThemeToggle";
+import { useRegister } from "../../lib/queries";
 
-export function LoginForm({
-  hostedMode = false,
-  registrationEnabled = false,
-}: {
-  hostedMode?: boolean;
-  registrationEnabled?: boolean;
-}) {
+export function SignupForm() {
   const router = useRouter();
-  const login = useLogin();
+  const register = useRegister();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [projectName, setProjectName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
     setError(null);
     try {
-      const res = await login.mutateAsync({ email, password });
-      setToken(res.token);
-      router.push("/dashboard");
+      const session = await register.mutateAsync({
+        name,
+        email,
+        password,
+        project_name: projectName || undefined,
+      });
+      setToken(session.token);
+      router.push("/dashboard/storage");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed.");
+      setError(
+        err instanceof ApiError ? err.message : "Account creation failed.",
+      );
     }
   }
 
   return (
-    <Card className="w-full shadow-xl border border-default-200/60">
+    <Card className="w-full border border-default-200/60 shadow-xl">
       <Card.Header className="flex items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
-          <Card.Title className="text-2xl">Welcome back</Card.Title>
+          <Card.Title className="text-2xl">Create your account</Card.Title>
           <Card.Description>
-            Sign in to your FileBase admin account.
+            We’ll create your first project automatically.
           </Card.Description>
         </div>
         <div className="hidden lg:block">
@@ -56,6 +59,16 @@ export function LoginForm({
       </Card.Header>
       <Card.Content>
         <form onSubmit={onSubmit} className="flex flex-col gap-5">
+          <TextField isRequired>
+            <Label>Name</Label>
+            <Input
+              autoComplete="name"
+              placeholder="Ada Lovelace"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+            <FieldError />
+          </TextField>
           <TextField type="email" isRequired>
             <Label>Email</Label>
             <Input
@@ -69,12 +82,21 @@ export function LoginForm({
           <TextField type="password" isRequired>
             <Label>Password</Label>
             <Input
-              autoComplete="current-password"
-              placeholder="••••••••"
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+              minLength={8}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
             <FieldError />
+          </TextField>
+          <TextField>
+            <Label>First project</Label>
+            <Input
+              placeholder="My Project"
+              value={projectName}
+              onChange={(event) => setProjectName(event.target.value)}
+            />
           </TextField>
           {error && (
             <div
@@ -89,39 +111,23 @@ export function LoginForm({
             variant="primary"
             size="lg"
             fullWidth
-            isPending={login.isPending}
-            isDisabled={!email || !password}
+            isPending={register.isPending}
+            isDisabled={!name || !email || password.length < 8}
           >
-            Sign in
+            Create account
           </Button>
         </form>
       </Card.Content>
       <Card.Footer>
-        {registrationEnabled ? (
-          <p className="text-sm text-default-500">
-            New to FileBase?{" "}
-            <Link
-              href="/signup"
-              className="text-accent font-medium hover:underline"
-            >
-              Create an account
-            </Link>
-          </p>
-        ) : !hostedMode ? (
-          <p className="text-xs text-default-500">
-            Need to set up FileBase?{" "}
-            <Link
-              href="/onboarding"
-              className="text-accent font-medium hover:underline"
-            >
-              Run onboarding
-            </Link>
-          </p>
-        ) : (
-          <p className="text-xs text-default-500">
-            New account registration is currently closed.
-          </p>
-        )}
+        <p className="text-sm text-default-500">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-medium text-accent hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
       </Card.Footer>
     </Card>
   );

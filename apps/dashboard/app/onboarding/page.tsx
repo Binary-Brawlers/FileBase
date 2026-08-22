@@ -1,10 +1,17 @@
 import { Onboarding } from "./Onboarding";
 import { Brand } from "../../components/Brand";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { redirect } from "next/navigation";
+import { api } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default function OnboardingPage() {
+export default async function OnboardingPage() {
+  const status = await api.getSetupStatus().catch(() => null);
+  if (status && !status.setup_required) {
+    redirect(status.registration_enabled ? "/signup" : "/login");
+  }
+
   return (
     <div className="auth-shell min-h-screen flex flex-col">
       <header className="flex items-center justify-between p-6 sm:px-10">

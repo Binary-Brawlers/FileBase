@@ -2,6 +2,13 @@ use std::net::SocketAddr;
 
 use serde::Deserialize;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeploymentMode {
+    SelfHosted,
+    Hosted,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageDriver {
@@ -22,6 +29,8 @@ pub enum DuplicateStrategy {
 #[allow(dead_code)]
 pub struct Config {
     pub bind_address: SocketAddr,
+    pub deployment_mode: DeploymentMode,
+    pub public_registration_enabled: bool,
     pub app_url: String,
     pub dashboard_url: String,
     pub database_url: String,
@@ -56,6 +65,19 @@ impl Config {
             .map_err(|e: std::net::AddrParseError| {
                 ConfigError::Invalid("BIND_ADDRESS", e.to_string())
             })?;
+
+        let deployment_mode = match optional("DEPLOYMENT_MODE")
+            .unwrap_or_else(|| "self_hosted".to_string())
+            .as_str()
+        {
+            "self_hosted" => DeploymentMode::SelfHosted,
+            "hosted" => DeploymentMode::Hosted,
+            other => return Err(ConfigError::Invalid("DEPLOYMENT_MODE", other.to_string())),
+        };
+        let public_registration_enabled = optional_bool(
+            "PUBLIC_REGISTRATION_ENABLED",
+            deployment_mode == DeploymentMode::Hosted,
+        )?;
 
         let app_url = required("APP_URL")?;
         let dashboard_url = required("DASHBOARD_URL")?;
@@ -117,6 +139,8 @@ impl Config {
 
         Ok(Self {
             bind_address,
+            deployment_mode,
+            public_registration_enabled,
             app_url,
             dashboard_url,
             database_url,
@@ -143,4 +167,15 @@ fn required(key: &'static str) -> Result<String, ConfigError> {
 
 fn optional(key: &'static str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
+}
+
+fn optional_bool(key: &'static str, default: bool) -> Result<bool, ConfigError> {
+    match optional(key) {
+        None => Ok(default),
+        Some(value) => match value.to_ascii_lowercase().as_str() {
+            "true" | "1" | "yes" | "on" => Ok(true),
+            "false" | "0" | "no" | "off" => Ok(false),
+            _ => Err(ConfigError::Invalid(key, value)),
+        },
+    }
 }
