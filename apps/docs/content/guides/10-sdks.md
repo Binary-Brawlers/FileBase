@@ -11,7 +11,7 @@ FileBase ships first-party SDKs for the most common JavaScript runtimes. They wr
 | `@binary-brawlers/filebase-react-native` | React Native / Expo uploads from a file URI. |
 | `@binary-brawlers/filebase-next` | Next.js route helpers for App and Pages routers. |
 | `@binary-brawlers/filebase-node` | Server-side admin client. |
-| `@binary-brawlers/filebase-vue` | (Planned) Vue components. |
+| `@binary-brawlers/filebase-vue` | Vue 3 `useUpload` composable. |
 
 Install with your package manager of choice:
 
@@ -69,6 +69,32 @@ const result = await client.upload(file, {
 });
 
 console.log(result.url);
+```
+
+## Vue
+
+```vue
+<script setup lang="ts">
+import { useUpload } from "@binary-brawlers/filebase-vue";
+
+const { isUploading, progress, file, upload } = useUpload({
+  signEndpoint: "/api/upload/sign",
+  preset: "profile_images",
+});
+
+function onChange(event: Event) {
+  const selected = (event.target as HTMLInputElement).files?.[0];
+  if (selected) upload(selected);
+}
+</script>
+
+<template>
+  <input type="file" :disabled="isUploading" @change="onChange" />
+  <p v-if="isUploading">
+    Uploading… {{ Math.round((progress?.fraction ?? 0) * 100) }}%
+  </p>
+  <p v-if="file">{{ file.url }}</p>
+</template>
 ```
 
 ## React Native

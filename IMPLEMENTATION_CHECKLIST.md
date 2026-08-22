@@ -240,14 +240,14 @@ Next code milestone is Phase 16 post-MVP expansion.
 ## Phase 16: Post-MVP Expansion
 
 - [x] Add React Native SDK.
-- [ ] Add Vue SDK.
+- [x] Add Vue SDK.
 - [ ] Add folder management.
 - [ ] Add improved upload logs.
-- [ ] Add S3 adapter.
-- [ ] Add Cloudflare R2 adapter.
-- [ ] Add DigitalOcean Spaces adapter.
-- [ ] Add Backblaze B2 adapter.
-- [ ] Add Wasabi adapter.
+- [x] Add S3 adapter.
+- [x] Add Cloudflare R2 adapter.
+- [x] Add DigitalOcean Spaces adapter.
+- [x] Add Backblaze B2 adapter.
+- [x] Add Wasabi adapter.
 - [ ] Add advanced analytics.
 - [ ] Add team accounts.
 - [ ] Add role-based permissions.

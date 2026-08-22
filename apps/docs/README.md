@@ -16,3 +16,4 @@ User-facing documentation for FileBase. Until a docs site framework is selected,
 10. [SDKs](./content/guides/10-sdks.md) — JavaScript/TypeScript packages for client and server.
 11. [Troubleshooting](./content/guides/11-troubleshooting.md) — common failure modes and how to diagnose them.
 12. [Security Recommendations](./content/guides/12-security.md) — hardening checklist for production deployments.
+13. [S3 & S3-Compatible Storage](./content/guides/13-s3-storage.md) — AWS S3, Cloudflare R2, Spaces, B2, and Wasabi.

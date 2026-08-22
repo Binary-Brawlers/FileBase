@@ -1,13 +1,10 @@
 # @binary-brawlers/filebase-vue
 
-Vue 3 integration for [FileBase](https://github.com/binary-brawlers/filebase).
+Vue 3 integration for [FileBase](https://github.com/binary-brawlers/filebase)
+upload gateway.
 
-> **Status:** Early preview. This package currently re-exports
-> `FileBaseClient` from `@binary-brawlers/filebase-client` so Vue users can
-> install a single package and start uploading today. Composition-API
-> composables (`useFileBaseUpload`) and components (`<FileBaseUpload>`,
-> `<FileBaseDropzone>`) are tracked on the FileBase roadmap and will land in
-> a future minor release without breaking the current API.
+Built on top of `@binary-brawlers/filebase-client`. Works with any Vue 3
+app — Vite, Nuxt, etc.
 
 ## Install
 
@@ -15,102 +12,106 @@ Vue 3 integration for [FileBase](https://github.com/binary-brawlers/filebase).
 npm install @binary-brawlers/filebase-vue
 ```
 
-Peer dependency: `vue >= 3`.
+`vue >= 3` is a peer dependency.
 
 ## Setup
 
-You need a **sign endpoint** on your backend (see
-[`@binary-brawlers/filebase-node`](https://www.npmjs.com/package/@binary-brawlers/filebase-node)
-or [`@binary-brawlers/filebase-next`](https://www.npmjs.com/package/@binary-brawlers/filebase-next))
-that returns a signed upload session. The Vue app calls that endpoint —
-never the FileBase API directly.
+You need a **sign endpoint** on your own backend that exchanges your secret
+FileBase API key for a short-lived upload session. The fastest way:
 
-## Today: use `FileBaseClient`
+```ts
+// app/api/upload/sign/route.ts  (Next.js App Router)
+import { createFileBaseRoute } from "@binary-brawlers/filebase-next";
+
+export const POST = createFileBaseRoute({
+  apiKey: process.env.FILEBASE_API_KEY!,
+  gatewayUrl: process.env.FILEBASE_GATEWAY_URL!,
+});
+```
+
+Then point the composable at it. The Vue app calls that endpoint — never
+the FileBase API directly.
+
+## `useUpload` composable
 
 ```vue
 <script setup lang="ts">
-import { ref } from "vue";
-import { FileBaseClient, FileBaseError } from "@binary-brawlers/filebase-vue";
+import { useUpload } from "@binary-brawlers/filebase-vue";
 
-const client = new FileBaseClient({ signEndpoint: "/api/upload/sign" });
-const isUploading = ref(false);
-const progress = ref(0);
-const url = ref<string | null>(null);
-const error = ref<string | null>(null);
+const {
+  isUploading,
+  progress,
+  error,
+  file,
+  upload,
+  abort,
+  reset,
+} = useUpload({
+  signEndpoint: "/api/upload/sign",
+  preset: "profile_images",
+  onUploadComplete: (result) => console.log(result.url),
+});
 
-async function onChange(event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  isUploading.value = true;
-  error.value = null;
-  try {
-    const result = await client.upload(file, {
-      preset: "profile_images",
-      onProgress: (p) => {
-        progress.value = Math.round((p.fraction ?? 0) * 100);
-      },
-    });
-    url.value = result.url;
-  } catch (e) {
-    error.value = e instanceof FileBaseError ? e.code : "upload failed";
-  } finally {
-    isUploading.value = false;
-  }
+function onFileChange(event: Event) {
+  const selected = (event.target as HTMLInputElement).files?.[0];
+  if (selected) upload(selected);
 }
 </script>
 
 <template>
   <div>
-    <input type="file" :disabled="isUploading" @change="onChange" />
-    <p v-if="isUploading">Uploading… {{ progress }}%</p>
-    <p v-if="error" class="error">{{ error }}</p>
-    <a v-if="url" :href="url">{{ url }}</a>
+    <input type="file" :disabled="isUploading" @change="onFileChange" />
+    <p v-if="isUploading">
+      Uploading… {{ Math.round((progress?.fraction ?? 0) * 100) }}%
+    </p>
+    <p v-if="error" class="error">{{ error.code }}</p>
+    <a v-if="file" :href="file.url">{{ file.url }}</a>
+    <button type="button" :disabled="!isUploading" @click="abort">
+      Cancel
+    </button>
   </div>
 </template>
 ```
 
-## Wrap as a composable
-
-A minimal `useUpload` is a few lines of Composition API on top of the
-client:
+`useUpload` returns a single reactive object (refs are auto-unwrapped in
+templates):
 
 ```ts
-// composables/useUpload.ts
-import { reactive } from "vue";
-import { FileBaseClient, FileBaseError } from "@binary-brawlers/filebase-vue";
-
-export function useUpload(options: { signEndpoint: string; preset?: string }) {
-  const client = new FileBaseClient({ signEndpoint: options.signEndpoint });
-  const state = reactive({
-    isUploading: false,
-    progress: 0,
-    error: null as string | null,
-    url: null as string | null,
-  });
-
-  async function upload(file: File) {
-    state.isUploading = true;
-    state.error = null;
-    try {
-      const result = await client.upload(file, {
-        preset: options.preset,
-        onProgress: (p) => (state.progress = Math.round((p.fraction ?? 0) * 100)),
-      });
-      state.url = result.url;
-      return result;
-    } catch (e) {
-      state.error = e instanceof FileBaseError ? e.code : "upload failed";
-    } finally {
-      state.isUploading = false;
-    }
-  }
-
-  return { state, upload };
+{
+  client: FileBaseClient;
+  isUploading: Ref<boolean>;
+  progress: Ref<{ loaded, total, fraction } | null>;
+  error: Ref<FileBaseError | null>;
+  file: Ref<FileBaseUploadResult | null>;
+  upload: (file: Blob, overrides?: UploadOptions) => Promise<FileBaseUploadResult | null>;
+  abort: () => void;
+  reset: () => void;
 }
 ```
 
-The first-party composables and components will follow the same shape so
-you can swap them in later.
+Options mirror `FileBaseClientOptions` (`signEndpoint`, `signHeaders`,
+`signCredentials`, `fetch`) plus:
+
+- `preset` / `presetId` / `projectId` — preset to use server-side
+- `onUploadComplete(file)`, `onUploadError(error)`
+
+## Lower-level client
+
+You can also use the underlying `FileBaseClient` directly, re-exported
+from this package:
+
+```ts
+import { FileBaseClient, FileBaseError } from "@binary-brawlers/filebase-vue";
+
+const client = new FileBaseClient({ signEndpoint: "/api/upload/sign" });
+const result = await client.upload(file, { preset: "profile_images" });
+```
+
+## Errors
+
+Catch with `error instanceof FileBaseError` to read `code` / `status` /
+`details`. See [`@binary-brawlers/filebase-shared`](https://www.npmjs.com/package/@binary-brawlers/filebase-shared)
+for the full code list.
 
 ## License
 

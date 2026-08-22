@@ -62,7 +62,7 @@ export function StorageConnectionsPage() {
       <PageHeader
         icon={Database}
         title="Storage connections"
-        description="Connect local folders, FTP, and SFTP destinations. Credentials stay encrypted and are never exposed to client apps."
+        description="Connect local folders, FTP, SFTP, and S3-compatible destinations. Credentials stay encrypted and are never exposed to client apps."
         action={
           <Button variant="primary" onPress={createModal.open} isDisabled={!defaultProjectId}>
             <Plus className="h-4 w-4" /> Add connection
@@ -78,7 +78,7 @@ export function StorageConnectionsPage() {
         <EmptyBlock
           icon={Database}
           title="No storage connections"
-          description="Add a local, FTP, or SFTP destination before creating production upload presets."
+          description="Add a local, FTP, SFTP, or S3 destination before creating production upload presets."
           action={
             <Button variant="primary" onPress={createModal.open} isDisabled={!defaultProjectId}>
               <Plus className="h-4 w-4" /> Add connection
@@ -156,9 +156,12 @@ function ConnectionCard({
   onDelete: () => void;
   onTest: () => void;
 }) {
-  const title = connection.host
-    ? `${connection.host}${connection.port ? `:${connection.port}` : ""}`
-    : connection.base_path;
+  const title =
+    connection.type === "s3"
+      ? connection.bucket ?? connection.base_path
+      : connection.host
+        ? `${connection.host}${connection.port ? `:${connection.port}` : ""}`
+        : connection.base_path;
 
   return (
     <article className="group relative overflow-hidden rounded-3xl border border-default-200 bg-background p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md">
@@ -228,6 +231,12 @@ function toFormValue(connection: StorageConnection): ConnectionFormValue {
     username: connection.username ?? "",
     password: "",
     private_key: "",
+    bucket: connection.bucket ?? "",
+    region: connection.region ?? "",
+    endpoint: connection.host ?? "",
+    access_key: connection.username ?? "",
+    secret_key: "",
+    force_path_style: connection.force_path_style,
     base_path: connection.base_path,
     public_base_url: connection.public_base_url,
   };

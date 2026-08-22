@@ -73,6 +73,17 @@ export type InitializeRequest = {
         private_key?: string;
         base_path: string;
         public_base_url: string;
+      }
+    | {
+        type: "s3";
+        bucket: string;
+        region: string;
+        endpoint?: string;
+        access_key: string;
+        secret_key: string;
+        force_path_style?: boolean;
+        base_path: string;
+        public_base_url: string;
       };
   preset?: {
     name?: string;
@@ -114,12 +125,15 @@ export type UpdateProjectRequest = { name?: string; slug?: string };
 export type StorageConnection = {
   id: string;
   project_id: string;
-  type: "local" | "ftp" | "sftp";
+  type: "local" | "ftp" | "sftp" | "s3";
   host: string | null;
   port: number | null;
   username: string | null;
   has_password: boolean;
   has_private_key: boolean;
+  bucket: string | null;
+  region: string | null;
+  force_path_style: boolean;
   base_path: string;
   public_base_url: string;
   created_at: string;
@@ -136,6 +150,9 @@ export type UpdateStorageConnectionRequest = {
   username?: string;
   password?: string;
   private_key?: string;
+  bucket?: string;
+  region?: string;
+  force_path_style?: boolean;
   base_path?: string;
   public_base_url?: string;
 };

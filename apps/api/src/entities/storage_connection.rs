@@ -15,6 +15,9 @@ pub struct Model {
     pub encrypted_password: Option<String>,
     #[serde(skip_serializing)]
     pub encrypted_private_key: Option<String>,
+    pub bucket: Option<String>,
+    pub region: Option<String>,
+    pub force_path_style: bool,
     pub base_path: String,
     pub public_base_url: String,
     pub created_at: ChronoDateTimeWithTimeZone,

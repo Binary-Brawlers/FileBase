@@ -42,6 +42,16 @@ pub enum StorageInput {
         base_path: String,
         public_base_url: String,
     },
+    S3 {
+        bucket: String,
+        region: String,
+        endpoint: Option<String>,
+        access_key: String,
+        secret_key: String,
+        force_path_style: Option<bool>,
+        base_path: String,
+        public_base_url: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -58,6 +68,9 @@ pub struct UpdateRequest {
     pub username: Option<String>,
     pub password: Option<String>,
     pub private_key: Option<String>,
+    pub bucket: Option<String>,
+    pub region: Option<String>,
+    pub force_path_style: Option<bool>,
     pub base_path: Option<String>,
     pub public_base_url: Option<String>,
 }
@@ -73,6 +86,9 @@ pub struct StorageConnectionView {
     pub username: Option<String>,
     pub has_password: bool,
     pub has_private_key: bool,
+    pub bucket: Option<String>,
+    pub region: Option<String>,
+    pub force_path_style: bool,
     pub base_path: String,
     pub public_base_url: String,
     pub created_at: String,
@@ -90,6 +106,9 @@ impl From<storage_connection::Model> for StorageConnectionView {
             username: m.username,
             has_password: m.encrypted_password.is_some(),
             has_private_key: m.encrypted_private_key.is_some(),
+            bucket: m.bucket,
+            region: m.region,
+            force_path_style: m.force_path_style,
             base_path: m.base_path,
             public_base_url: m.public_base_url,
             created_at: m.created_at.to_rfc3339(),
@@ -191,6 +210,15 @@ pub async fn update(
             Some(crypto::encrypt(&private_key, &key)?)
         };
         active.encrypted_private_key = Set(encrypted);
+    }
+    if let Some(bucket) = payload.bucket {
+        active.bucket = Set(Some(bucket));
+    }
+    if let Some(region) = payload.region {
+        active.region = Set(Some(region));
+    }
+    if let Some(force_path_style) = payload.force_path_style {
+        active.force_path_style = Set(force_path_style);
     }
     if let Some(base_path) = payload.base_path {
         active.base_path = Set(base_path);
@@ -302,6 +330,9 @@ fn build_create_model(
         username,
         encrypted_password,
         encrypted_private_key,
+        bucket,
+        region,
+        force_path_style,
         base_path,
         public_base_url,
     ) = match input {
@@ -315,6 +346,9 @@ fn build_create_model(
             None,
             None,
             None,
+            None,
+            None,
+            false,
             base_path,
             public_base_url,
         ),
@@ -332,6 +366,9 @@ fn build_create_model(
             Some(username),
             Some(crypto::encrypt(&password, encryption_key)?),
             None,
+            None,
+            None,
+            false,
             base_path,
             public_base_url,
         ),
@@ -362,10 +399,35 @@ fn build_create_model(
                     .as_deref()
                     .map(|k| crypto::encrypt(k, encryption_key))
                     .transpose()?,
+                None,
+                None,
+                false,
                 base_path,
                 public_base_url,
             )
         }
+        StorageInput::S3 {
+            bucket,
+            region,
+            endpoint,
+            access_key,
+            secret_key,
+            force_path_style,
+            base_path,
+            public_base_url,
+        } => (
+            "s3".to_string(),
+            endpoint,
+            None,
+            Some(access_key),
+            Some(crypto::encrypt(&secret_key, encryption_key)?),
+            None,
+            Some(bucket),
+            Some(region),
+            force_path_style.unwrap_or(false),
+            base_path,
+            public_base_url,
+        ),
     };
 
     Ok(storage_connection::ActiveModel {
@@ -377,6 +439,9 @@ fn build_create_model(
         username: Set(username),
         encrypted_password: Set(encrypted_password),
         encrypted_private_key: Set(encrypted_private_key),
+        bucket: Set(bucket),
+        region: Set(region),
+        force_path_style: Set(force_path_style),
         base_path: Set(base_path),
         public_base_url: Set(public_base_url),
         created_at: Set(now),

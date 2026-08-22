@@ -9,6 +9,7 @@ members = [
   "crates/storage-local",
   "crates/storage-ftp",
   "crates/storage-sftp",
+  "crates/storage-s3",
   "crates/image-processing",
 ]
 
@@ -16,7 +17,7 @@ members = [
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/filebase/filebase"
-rust-version = "1.80"
+rust-version = "1.88"
 
 [workspace.dependencies]
 anyhow = "1"
