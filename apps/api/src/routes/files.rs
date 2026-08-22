@@ -9,10 +9,11 @@ use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter, QueryOrder};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::entities::{file, project, storage_connection, upload_log};
+use crate::entities::{file, storage_connection, upload_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
 use crate::routes::upload_logs::{self, UploadLogView};
+use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::services::{storage_factory, webhooks};
 use crate::state::AppState;
 
@@ -132,7 +133,7 @@ pub async fn get(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let model = load_owned_file(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible_file(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
     Ok(Json(json!({ "data": FileView::from(model) })).into_response())
 }
 
@@ -141,7 +142,7 @@ pub async fn delete(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let model = load_owned_file(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible_file(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
     let connection = storage_connection::Entity::find_by_id(model.storage_connection_id.clone())
         .one(&state.db)
         .await?
@@ -191,7 +192,7 @@ pub async fn logs(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let model = load_owned_file(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible_file(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
     let rows = upload_log::Entity::find()
         .filter(upload_log::Column::FileId.eq(model.id))
         .order_by_desc(upload_log::Column::CreatedAt)
@@ -205,43 +206,25 @@ pub async fn logs(
     Ok(Json(json!({ "data": view })).into_response())
 }
 
-async fn load_owned_file(
+async fn load_accessible_file(
     state: &AppState,
     user_id: &str,
     id: &str,
+    required: ProjectRole,
 ) -> Result<file::Model, ApiError> {
     let model = file::Entity::find_by_id(id.to_string())
         .one(&state.db)
         .await?
         .ok_or(ApiError::NotFound)?;
-    ensure_project_owner(state, user_id, &model.project_id).await?;
+    require_project_role(state, user_id, &model.project_id, required).await?;
     Ok(model)
-}
-
-pub(crate) async fn ensure_project_owner(
-    state: &AppState,
-    user_id: &str,
-    project_id: &str,
-) -> Result<(), ApiError> {
-    let project = project::Entity::find_by_id(project_id.to_string())
-        .one(&state.db)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    if project.user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
-    Ok(())
 }
 
 pub(crate) async fn owned_project_ids(
     state: &AppState,
     user_id: &str,
 ) -> Result<Vec<String>, ApiError> {
-    let projects = project::Entity::find()
-        .filter(project::Column::UserId.eq(user_id.to_string()))
-        .all(&state.db)
-        .await?;
-    Ok(projects.into_iter().map(|p| p.id).collect())
+    accessible_project_ids(state, user_id).await
 }
 
 pub(crate) fn parse_date_filter(value: Option<&str>) -> Result<Option<DateTime<Utc>>, ApiError> {

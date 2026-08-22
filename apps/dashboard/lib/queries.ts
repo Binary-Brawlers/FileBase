@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
+  type AnalyticsFilters,
   type CreateApiKeyRequest,
   type CreateProjectRequest,
   type CreateStorageConnectionRequest,
@@ -10,6 +11,7 @@ import {
   type CreateUploadPresetRequest,
   type FileFilters,
   type InitializeRequest,
+  type ProjectRole,
   type UploadLogFilters,
   type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
@@ -22,6 +24,12 @@ export const queryKeys = {
   setupStatus: ["setup", "status"] as const,
   me: ["auth", "me"] as const,
   projects: ["projects"] as const,
+  projectMembers: (projectId?: string) =>
+    ["projects", projectId, "members"] as const,
+  projectInvitations: (projectId?: string) =>
+    ["projects", projectId, "invitations"] as const,
+  invitationPreview: (token?: string) =>
+    ["team-invitations", token, "preview"] as const,
   storageConnections: ["storage-connections"] as const,
   uploadPresets: ["upload-presets"] as const,
   apiKeys: ["api-keys"] as const,
@@ -30,6 +38,8 @@ export const queryKeys = {
   fileLogs: (id?: string | null) => ["files", id, "logs"] as const,
   uploadLogs: (filters?: UploadLogFilters) =>
     ["upload-logs", filters ?? {}] as const,
+  analytics: (filters?: AnalyticsFilters) =>
+    ["analytics", filters ?? {}] as const,
   webhooks: ["webhooks"] as const,
   webhookDeliveries: (id?: string | null) =>
     ["webhooks", id, "deliveries"] as const,
@@ -105,6 +115,114 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (id: string) => api.deleteProject(id, getToken()),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.projects }),
+  });
+}
+
+export function useProjectMembers(projectId?: string) {
+  return useQuery({
+    queryKey: queryKeys.projectMembers(projectId),
+    queryFn: () => api.listProjectMembers(projectId!, getToken()),
+    enabled: !!projectId,
+  });
+}
+
+export function useProjectInvitations(projectId?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.projectInvitations(projectId),
+    queryFn: () => api.listProjectInvitations(projectId!, getToken()),
+    enabled: !!projectId && enabled,
+  });
+}
+
+export function useCreateProjectInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      email,
+      role,
+    }: {
+      projectId: string;
+      email: string;
+      role: Exclude<ProjectRole, "owner">;
+    }) => api.createProjectInvitation(projectId, { email, role }, getToken()),
+    onSuccess: (_, variables) =>
+      qc.invalidateQueries({
+        queryKey: queryKeys.projectInvitations(variables.projectId),
+      }),
+  });
+}
+
+export function useUpdateProjectMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      userId,
+      role,
+    }: {
+      projectId: string;
+      userId: string;
+      role: Exclude<ProjectRole, "owner">;
+    }) => api.updateProjectMember(projectId, userId, role, getToken()),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.projectMembers(variables.projectId),
+      });
+      qc.invalidateQueries({ queryKey: queryKeys.projects });
+    },
+  });
+}
+
+export function useRemoveProjectMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      userId,
+    }: {
+      projectId: string;
+      userId: string;
+    }) => api.removeProjectMember(projectId, userId, getToken()),
+    onSuccess: (_, variables) => {
+      qc.invalidateQueries({
+        queryKey: queryKeys.projectMembers(variables.projectId),
+      });
+      qc.invalidateQueries({ queryKey: queryKeys.projects });
+    },
+  });
+}
+
+export function useRevokeProjectInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      projectId,
+      invitationId,
+    }: {
+      projectId: string;
+      invitationId: string;
+    }) => api.revokeProjectInvitation(projectId, invitationId, getToken()),
+    onSuccess: (_, variables) =>
+      qc.invalidateQueries({
+        queryKey: queryKeys.projectInvitations(variables.projectId),
+      }),
+  });
+}
+
+export function useInvitationPreview(token?: string) {
+  return useQuery({
+    queryKey: queryKeys.invitationPreview(token),
+    queryFn: () => api.previewInvitation(token!),
+    enabled: !!token,
+    retry: false,
+  });
+}
+
+export function useAcceptInvitation() {
+  return useMutation({
+    mutationFn: (body: { token: string; name?: string; password: string }) =>
+      api.acceptInvitation(body),
   });
 }
 
@@ -252,6 +370,13 @@ export function useUploadLogs(filters?: UploadLogFilters) {
   return useQuery({
     queryKey: queryKeys.uploadLogs(filters),
     queryFn: () => api.listUploadLogs(filters, getToken()),
+  });
+}
+
+export function useAnalytics(filters?: AnalyticsFilters) {
+  return useQuery({
+    queryKey: queryKeys.analytics(filters),
+    queryFn: () => api.getAnalytics(filters, getToken()),
   });
 }
 

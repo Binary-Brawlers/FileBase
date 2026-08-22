@@ -1,6 +1,14 @@
 "use client";
 
-import { Button, Chip, Input, Label, Switch, TextField, useOverlayState } from "@heroui/react";
+import {
+  Button,
+  Chip,
+  Input,
+  Label,
+  Switch,
+  TextField,
+  useOverlayState,
+} from "@heroui/react";
 import { Copy, Pencil, Plus, Trash2, Webhook } from "lucide-react";
 import { useState } from "react";
 import {
@@ -12,7 +20,13 @@ import {
   NativeSelect,
   PageHeader,
 } from "../../../components/PageUI";
-import { ApiError, type CreatedWebhook, type Webhook as WebhookRecord, type WebhookEvent } from "../../../lib/api";
+import {
+  ApiError,
+  hasProjectRole,
+  type CreatedWebhook,
+  type Webhook as WebhookRecord,
+  type WebhookEvent,
+} from "../../../lib/api";
 import {
   useCreateWebhook,
   useDeleteWebhook,
@@ -47,11 +61,15 @@ export function WebhooksPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deliveries = useWebhookDeliveries(selectedId);
-  const selectedProjectId = projectId || projects.data?.[0]?.id || "";
+  const editableProjects =
+    projects.data?.filter((project) =>
+      hasProjectRole(project.role, "editor"),
+    ) ?? [];
+  const selectedProjectId = projectId || editableProjects[0]?.id || "";
 
   function openCreate() {
     setEditing(null);
-    setProjectId(projects.data?.[0]?.id ?? "");
+    setProjectId(editableProjects[0]?.id ?? "");
     setUrl("");
     setEvents(["file.uploaded"]);
     setActive(true);
@@ -83,7 +101,12 @@ export function WebhooksPage() {
       if (editing) {
         await update.mutateAsync({
           id: editing.id,
-          body: { url, events, is_active: active, ...(secret ? { secret } : {}) },
+          body: {
+            url,
+            events,
+            is_active: active,
+            ...(secret ? { secret } : {}),
+          },
         });
       } else {
         const res = await create.mutateAsync({
@@ -119,9 +142,15 @@ export function WebhooksPage() {
         title="Webhooks"
         description="Notify your application when files are uploaded, deleted, optimized, rejected as duplicates, or fail validation."
         action={
-          <Button variant="primary" onPress={openCreate} isDisabled={!selectedProjectId}>
-            <Plus className="h-4 w-4" /> New webhook
-          </Button>
+          selectedProjectId ? (
+            <Button
+              variant="primary"
+              onPress={openCreate}
+              isDisabled={!selectedProjectId}
+            >
+              <Plus className="h-4 w-4" /> New webhook
+            </Button>
+          ) : undefined
         }
       />
 
@@ -131,68 +160,160 @@ export function WebhooksPage() {
         <section className="rounded-3xl border border-success/25 bg-success/10 p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-semibold text-success">Copy this signing secret now</h2>
-              <p className="text-sm text-default-600">The full secret is only shown after creating the webhook.</p>
+              <h2 className="font-semibold text-success">
+                Copy this signing secret now
+              </h2>
+              <p className="text-sm text-default-600">
+                The full secret is only shown after creating the webhook.
+              </p>
             </div>
-            <Button size="sm" variant="tertiary" onPress={() => navigator.clipboard?.writeText(created.signing_secret)}>
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={() =>
+                navigator.clipboard?.writeText(created.signing_secret)
+              }
+            >
               <Copy className="h-3.5 w-3.5" /> Copy
             </Button>
           </div>
-          <code className="mt-4 block break-all rounded-2xl border border-success/20 bg-background/80 p-4 text-sm">{created.signing_secret}</code>
+          <code className="mt-4 block break-all rounded-2xl border border-success/20 bg-background/80 p-4 text-sm">
+            {created.signing_secret}
+          </code>
         </section>
       )}
 
       {webhooks.isPending ? (
         <LoadingBlock />
       ) : !webhooks.data?.length ? (
-        <EmptyBlock icon={Webhook} title="No webhooks" description="Create an endpoint subscription to receive signed file lifecycle events." action={<Button variant="primary" onPress={openCreate}>Create webhook</Button>} />
+        <EmptyBlock
+          icon={Webhook}
+          title="No webhooks"
+          description="Create an endpoint subscription to receive signed file lifecycle events."
+          action={
+            selectedProjectId ? (
+              <Button variant="primary" onPress={openCreate}>
+                Create webhook
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
           <div className="grid gap-4">
             {webhooks.data.map((hook) => (
-              <article key={hook.id} className="rounded-3xl border border-default-200 bg-background p-5 shadow-sm">
+              <article
+                key={hook.id}
+                className="rounded-3xl border border-default-200 bg-background p-5 shadow-sm"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="break-all font-semibold">{hook.url}</h2>
-                      <Chip size="sm" variant="soft" color={hook.is_active ? "success" : "default"}>{hook.is_active ? "Active" : "Paused"}</Chip>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={hook.is_active ? "success" : "default"}
+                      >
+                        {hook.is_active ? "Active" : "Paused"}
+                      </Chip>
                     </div>
-                    <p className="mt-1 font-mono text-xs text-default-400">{hook.id}</p>
+                    <p className="mt-1 font-mono text-xs text-default-400">
+                      {hook.id}
+                    </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="tertiary" onPress={() => setSelectedId(hook.id)}>Deliveries</Button>
-                    <Button size="sm" variant="tertiary" onPress={() => openEdit(hook)}><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-                    <Button size="sm" variant="danger-soft" onPress={() => onDelete(hook.id)} isPending={remove.isPending}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    <Button
+                      size="sm"
+                      variant="tertiary"
+                      onPress={() => setSelectedId(hook.id)}
+                    >
+                      Deliveries
+                    </Button>
+                    {hasProjectRole(
+                      projects.data?.find(
+                        (project) => project.id === hook.project_id,
+                      )?.role,
+                      "editor",
+                    ) && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="tertiary"
+                          onPress={() => openEdit(hook)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger-soft"
+                          onPress={() => onDelete(hook.id)}
+                          isPending={remove.isPending}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {hook.events.map((event) => <Chip key={event} size="sm" variant="soft">{event}</Chip>)}
+                  {hook.events.map((event) => (
+                    <Chip key={event} size="sm" variant="soft">
+                      {event}
+                    </Chip>
+                  ))}
                 </div>
-                <p className="mt-4 text-xs text-default-500">Updated {new Date(hook.updated_at).toLocaleString()}</p>
+                <p className="mt-4 text-xs text-default-500">
+                  Updated {new Date(hook.updated_at).toLocaleString()}
+                </p>
               </article>
             ))}
           </div>
 
           <aside className="rounded-3xl border border-default-200 bg-background p-5 shadow-sm">
             <h2 className="font-semibold">Delivery logs</h2>
-            <p className="mt-1 text-sm text-default-500">Select a webhook to inspect recent delivery attempts.</p>
+            <p className="mt-1 text-sm text-default-500">
+              Select a webhook to inspect recent delivery attempts.
+            </p>
             {!selectedId ? (
-              <p className="mt-6 rounded-2xl bg-default-50 p-4 text-sm text-default-500">No webhook selected.</p>
+              <p className="mt-6 rounded-2xl bg-default-50 p-4 text-sm text-default-500">
+                No webhook selected.
+              </p>
             ) : deliveries.isPending ? (
               <LoadingBlock />
             ) : !deliveries.data?.length ? (
-              <p className="mt-6 rounded-2xl bg-default-50 p-4 text-sm text-default-500">No deliveries recorded yet.</p>
+              <p className="mt-6 rounded-2xl bg-default-50 p-4 text-sm text-default-500">
+                No deliveries recorded yet.
+              </p>
             ) : (
               <div className="mt-5 flex max-h-[34rem] flex-col gap-3 overflow-auto pr-1">
                 {deliveries.data.map((log) => (
-                  <div key={log.id} className="rounded-2xl border border-default-100 bg-default-50 p-4">
+                  <div
+                    key={log.id}
+                    className="rounded-2xl border border-default-100 bg-default-50 p-4"
+                  >
                     <div className="flex items-center justify-between gap-2">
-                      <Chip size="sm" variant="soft" color={log.status === "delivered" ? "success" : "danger"}>{log.status}</Chip>
-                      <span className="text-xs text-default-500">Attempt {log.attempt}</span>
+                      <Chip
+                        size="sm"
+                        variant="soft"
+                        color={
+                          log.status === "delivered" ? "success" : "danger"
+                        }
+                      >
+                        {log.status}
+                      </Chip>
+                      <span className="text-xs text-default-500">
+                        Attempt {log.attempt}
+                      </span>
                     </div>
                     <p className="mt-2 text-sm font-medium">{log.event}</p>
-                    <p className="mt-1 text-xs text-default-500">{new Date(log.created_at).toLocaleString()} {log.status_code ? `- HTTP ${log.status_code}` : ""}</p>
-                    {log.error && <p className="mt-2 text-xs text-danger">{log.error}</p>}
+                    <p className="mt-1 text-xs text-default-500">
+                      {new Date(log.created_at).toLocaleString()}{" "}
+                      {log.status_code ? `- HTTP ${log.status_code}` : ""}
+                    </p>
+                    {log.error && (
+                      <p className="mt-2 text-xs text-danger">{log.error}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -201,28 +322,56 @@ export function WebhooksPage() {
         </div>
       )}
 
-      <FormModal state={modal} title={editing ? "Edit webhook" : "Create webhook"} description="Choose the endpoint and events FileBase should deliver." size="lg">
+      <FormModal
+        state={modal}
+        title={editing ? "Edit webhook" : "Create webhook"}
+        description="Choose the endpoint and events FileBase should deliver."
+        size="lg"
+      >
         <div className="flex flex-col gap-4">
           {!editing && (
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-default-700">Project</span>
-              <NativeSelect value={selectedProjectId} onChange={(e) => setProjectId(e.target.value)}>
-                {projects.data?.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              <NativeSelect
+                value={selectedProjectId}
+                onChange={(e) => setProjectId(e.target.value)}
+              >
+                {editableProjects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
               </NativeSelect>
             </label>
           )}
           <TextField isRequired>
             <Label>Endpoint URL</Label>
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/api/filebase-webhook" />
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://example.com/api/filebase-webhook"
+            />
           </TextField>
           <TextField>
-            <Label>{editing ? "Rotate signing secret" : "Signing secret"}</Label>
-            <Input value={secret} onChange={(e) => setSecret(e.target.value)} placeholder={editing ? "Leave blank to keep current secret" : "Auto-generated if blank"} />
+            <Label>
+              {editing ? "Rotate signing secret" : "Signing secret"}
+            </Label>
+            <Input
+              value={secret}
+              onChange={(e) => setSecret(e.target.value)}
+              placeholder={
+                editing
+                  ? "Leave blank to keep current secret"
+                  : "Auto-generated if blank"
+              }
+            />
           </TextField>
           <div className="flex items-center justify-between rounded-2xl border border-default-100 p-3">
             <div>
               <p className="text-sm font-medium">Active</p>
-              <p className="text-xs text-default-500">Paused webhooks are not queued.</p>
+              <p className="text-xs text-default-500">
+                Paused webhooks are not queued.
+              </p>
             </div>
             <Switch isSelected={active} onChange={(on) => setActive(on)}>
               <Switch.Control>
@@ -234,16 +383,32 @@ export function WebhooksPage() {
             <span className="text-sm font-medium text-default-700">Events</span>
             <div className="grid gap-2 sm:grid-cols-2">
               {EVENTS.map((event) => (
-                <label key={event} className="flex items-center gap-2 rounded-2xl border border-default-100 p-3 text-sm">
-                  <input type="checkbox" checked={events.includes(event)} onChange={() => toggleEvent(event)} />
+                <label
+                  key={event}
+                  className="flex items-center gap-2 rounded-2xl border border-default-100 p-3 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={events.includes(event)}
+                    onChange={() => toggleEvent(event)}
+                  />
                   <span>{event}</span>
                 </label>
               ))}
             </div>
           </div>
           <ModalActions>
-            <Button variant="tertiary" onPress={modal.close}>Cancel</Button>
-            <Button variant="primary" onPress={save} isPending={create.isPending || update.isPending} isDisabled={!url.trim() || !events.length || !selectedProjectId}>Save webhook</Button>
+            <Button variant="tertiary" onPress={modal.close}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onPress={save}
+              isPending={create.isPending || update.isPending}
+              isDisabled={!url.trim() || !events.length || !selectedProjectId}
+            >
+              Save webhook
+            </Button>
           </ModalActions>
         </div>
       </FormModal>

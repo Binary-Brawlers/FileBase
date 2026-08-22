@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use uuid::Uuid;
 
-use crate::entities::{project, storage_connection, upload_preset};
+use crate::entities::{storage_connection, upload_preset};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -87,7 +88,13 @@ pub async fn create(
     auth: AuthUser,
     Json(payload): Json<CreateRequest>,
 ) -> ApiResult<Response> {
-    ensure_project_owner(&state, &auth.claims.sub, &payload.project_id).await?;
+    require_project_role(
+        &state,
+        &auth.claims.sub,
+        &payload.project_id,
+        ProjectRole::Editor,
+    )
+    .await?;
     validate_storage_connection(
         &state,
         &payload.project_id,
@@ -132,11 +139,7 @@ pub async fn create(
 }
 
 pub async fn list(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Response> {
-    let projects = project::Entity::find()
-        .filter(project::Column::UserId.eq(auth.claims.sub.clone()))
-        .all(&state.db)
-        .await?;
-    let ids: Vec<String> = projects.into_iter().map(|p| p.id).collect();
+    let ids = accessible_project_ids(&state, &auth.claims.sub).await?;
     if ids.is_empty() {
         return Ok(Json(json!({ "data": Vec::<PresetView>::new() })).into_response());
     }
@@ -154,7 +157,7 @@ pub async fn get(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let model = load_owned(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
     Ok(Json(json!({ "data": PresetView::from(model) })).into_response())
 }
 
@@ -164,7 +167,7 @@ pub async fn update(
     Path(id): Path<String>,
     Json(payload): Json<UpdateRequest>,
 ) -> ApiResult<Response> {
-    let model = load_owned(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
     let project_id = model.project_id.clone();
 
     let mut active = model.into_active_model();
@@ -208,38 +211,24 @@ pub async fn delete(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let model = load_owned(&state, &auth.claims.sub, &id).await?;
+    let model = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
     upload_preset::Entity::delete_by_id(model.id)
         .exec(&state.db)
         .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
-async fn ensure_project_owner(
-    state: &AppState,
-    user_id: &str,
-    project_id: &str,
-) -> Result<(), ApiError> {
-    let project = project::Entity::find_by_id(project_id.to_string())
-        .one(&state.db)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    if project.user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
-    Ok(())
-}
-
-async fn load_owned(
+async fn load_accessible(
     state: &AppState,
     user_id: &str,
     id: &str,
+    required: ProjectRole,
 ) -> Result<upload_preset::Model, ApiError> {
     let model = upload_preset::Entity::find_by_id(id.to_string())
         .one(&state.db)
         .await?
         .ok_or(ApiError::NotFound)?;
-    ensure_project_owner(state, user_id, &model.project_id).await?;
+    require_project_role(state, user_id, &model.project_id, required).await?;
     Ok(model)
 }
 

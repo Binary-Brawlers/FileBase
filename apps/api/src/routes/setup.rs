@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json_};
 use uuid::Uuid;
 
-use crate::entities::{project, storage_connection, upload_preset, user};
+use crate::entities::{project, project_member, storage_connection, upload_preset, user};
 use crate::error::{ApiError, ApiResult};
+use crate::services::authorization::ProjectRole;
 use crate::services::{crypto, password};
 use crate::state::AppState;
 
@@ -136,6 +137,16 @@ pub async fn initialize(
         user_id: Set(user_id.clone()),
         name: Set(payload.project.name.trim().to_string()),
         slug: Set(slug),
+        created_at: Set(now),
+        updated_at: Set(now),
+    }
+    .insert(&state.db)
+    .await?;
+
+    project_member::ActiveModel {
+        project_id: Set(project_id.clone()),
+        user_id: Set(user_id.clone()),
+        role: Set(ProjectRole::Owner.as_str().to_string()),
         created_at: Set(now),
         updated_at: Set(now),
     }

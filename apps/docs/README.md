@@ -18,3 +18,5 @@ User-facing documentation for FileBase. Until a docs site framework is selected,
 12. [Security Recommendations](./content/guides/12-security.md) — hardening checklist for production deployments.
 13. [S3 & S3-Compatible Storage](./content/guides/13-s3-storage.md) — AWS S3, Cloudflare R2, Spaces, B2, and Wasabi.
 14. [Folders & Upload Logs](./content/guides/14-folders-and-upload-logs.md) — browse nested upload folders and investigate upload activity.
+15. [Analytics](./content/guides/15-analytics.md) — monitor upload volume, storage usage, content mix, and operational outcomes.
+16. [Team Access and Project Roles](./content/guides/16-team-access.md) — invite teammates and enforce project-scoped owner, admin, editor, and viewer permissions.

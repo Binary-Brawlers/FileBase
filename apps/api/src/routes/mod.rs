@@ -1,3 +1,4 @@
+pub mod analytics;
 pub mod api_keys;
 pub mod auth;
 pub mod files;
@@ -6,6 +7,7 @@ pub mod health;
 pub mod projects;
 pub mod setup;
 pub mod storage_connections;
+pub mod team;
 pub mod upload_logs;
 pub mod upload_presets;
 pub mod uploads;
@@ -49,6 +51,21 @@ pub fn router() -> Router<AppState> {
                 .patch(projects::update)
                 .delete(projects::delete),
         )
+        .route("/projects/:id/members", get(team::list_members))
+        .route(
+            "/projects/:id/members/:user_id",
+            patch(team::update_member).delete(team::remove_member),
+        )
+        .route(
+            "/projects/:id/invitations",
+            get(team::list_invitations).post(team::create_invitation),
+        )
+        .route(
+            "/projects/:id/invitations/:invitation_id",
+            axum::routing::delete(team::revoke_invitation),
+        )
+        .route("/team-invitations/accept", post(team::accept_invitation))
+        .route("/team-invitations/preview", post(team::preview_invitation))
         .route(
             "/upload-presets",
             get(upload_presets::list).post(upload_presets::create),
@@ -61,6 +78,7 @@ pub fn router() -> Router<AppState> {
         )
         .route("/api-keys", get(api_keys::list).post(api_keys::create))
         .route("/api-keys/:id/revoke", patch(api_keys::revoke))
+        .route("/analytics/summary", get(analytics::summary))
         .route("/uploads/sign", post(uploads::sign))
         .route("/uploads", post(uploads::direct_upload))
         .route("/uploads/:session_id", post(uploads::session_upload))

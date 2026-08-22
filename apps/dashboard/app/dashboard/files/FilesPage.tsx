@@ -21,7 +21,12 @@ import {
   NativeSelect,
   PageHeader,
 } from "../../../components/PageUI";
-import { ApiError, type FileFilters, type FileRecord } from "../../../lib/api";
+import {
+  ApiError,
+  hasProjectRole,
+  type FileFilters,
+  type FileRecord,
+} from "../../../lib/api";
 import {
   useDeleteFile,
   useFileLogs,
@@ -217,6 +222,12 @@ export function FilesPage() {
                   onSelect={() => setSelected(file)}
                   onDelete={() => onDelete(file)}
                   deleting={remove.isPending}
+                  canDelete={hasProjectRole(
+                    projects.data?.find(
+                      (project) => project.id === file.project_id,
+                    )?.role,
+                    "editor",
+                  )}
                 />
               ))}
             </div>
@@ -253,12 +264,14 @@ function FileCard({
   onSelect,
   onDelete,
   deleting,
+  canDelete,
 }: {
   file: FileRecord;
   selected: boolean;
   onSelect: () => void;
   onDelete: () => void;
   deleting: boolean;
+  canDelete: boolean;
 }) {
   return (
     <article
@@ -298,13 +311,15 @@ function FileCard({
           </span>
         </button>
         <div className="flex flex-wrap gap-2 md:justify-end">
-          <Button
-            size="sm"
-            variant="tertiary"
-            onPress={() => navigator.clipboard?.writeText(file.url)}
-          >
-            <Copy className="h-3.5 w-3.5" /> Copy URL
-          </Button>
+          {canDelete && (
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={() => navigator.clipboard?.writeText(file.url)}
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy URL
+            </Button>
+          )}
           <Button
             size="sm"
             variant="tertiary"

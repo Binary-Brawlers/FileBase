@@ -1,7 +1,18 @@
 "use client";
 
 import { Button, Chip, useOverlayState } from "@heroui/react";
-import { CheckCircle2, Database, Folder, Globe2, Pencil, Plus, Server, Trash2, Wifi, type LucideIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  Database,
+  Folder,
+  Globe2,
+  Pencil,
+  Plus,
+  Server,
+  Trash2,
+  Wifi,
+  type LucideIcon,
+} from "lucide-react";
 import { useState } from "react";
 import {
   Alert,
@@ -10,7 +21,11 @@ import {
   LoadingBlock,
   PageHeader,
 } from "../../../components/PageUI";
-import { ApiError, type StorageConnection } from "../../../lib/api";
+import {
+  ApiError,
+  hasProjectRole,
+  type StorageConnection,
+} from "../../../lib/api";
 import {
   useDeleteStorageConnection,
   useProjects,
@@ -27,10 +42,15 @@ export function StorageConnectionsPage() {
   const createModal = useOverlayState();
   const editModal = useOverlayState();
   const [editing, setEditing] = useState<StorageConnection | null>(null);
-  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; message?: string }>>({});
+  const [testResult, setTestResult] = useState<
+    Record<string, { ok: boolean; message?: string }>
+  >({});
   const [error, setError] = useState<string | null>(null);
 
-  const defaultProjectId = projects.data?.[0]?.id;
+  const manageableProjects =
+    projects.data?.filter((project) => hasProjectRole(project.role, "admin")) ??
+    [];
+  const defaultProjectId = manageableProjects[0]?.id;
 
   function openEdit(connection: StorageConnection) {
     setEditing(connection);
@@ -48,7 +68,12 @@ export function StorageConnectionsPage() {
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Delete this storage connection? Files using it will lose their backend.")) return;
+    if (
+      !confirm(
+        "Delete this storage connection? Files using it will lose their backend.",
+      )
+    )
+      return;
     setError(null);
     try {
       await remove.mutateAsync(id);
@@ -64,9 +89,15 @@ export function StorageConnectionsPage() {
         title="Storage connections"
         description="Connect local folders, FTP, SFTP, and S3-compatible destinations. Credentials stay encrypted and are never exposed to client apps."
         action={
-          <Button variant="primary" onPress={createModal.open} isDisabled={!defaultProjectId}>
-            <Plus className="h-4 w-4" /> Add connection
-          </Button>
+          defaultProjectId ? (
+            <Button
+              variant="primary"
+              onPress={createModal.open}
+              isDisabled={!defaultProjectId}
+            >
+              <Plus className="h-4 w-4" /> Add connection
+            </Button>
+          ) : undefined
         }
       />
 
@@ -80,9 +111,15 @@ export function StorageConnectionsPage() {
           title="No storage connections"
           description="Add a local, FTP, SFTP, or S3 destination before creating production upload presets."
           action={
-            <Button variant="primary" onPress={createModal.open} isDisabled={!defaultProjectId}>
-              <Plus className="h-4 w-4" /> Add connection
-            </Button>
+            defaultProjectId ? (
+              <Button
+                variant="primary"
+                onPress={createModal.open}
+                isDisabled={!defaultProjectId}
+              >
+                <Plus className="h-4 w-4" /> Add connection
+              </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -94,6 +131,12 @@ export function StorageConnectionsPage() {
               testResult={testResult[connection.id]}
               testing={test.isPending}
               deleting={remove.isPending}
+              canManage={hasProjectRole(
+                projects.data?.find(
+                  (project) => project.id === connection.project_id,
+                )?.role,
+                "admin",
+              )}
               onEdit={() => openEdit(connection)}
               onDelete={() => onDelete(connection.id)}
               onTest={() => onTest(connection.id)}
@@ -144,6 +187,7 @@ function ConnectionCard({
   testResult,
   testing,
   deleting,
+  canManage,
   onEdit,
   onDelete,
   onTest,
@@ -152,13 +196,14 @@ function ConnectionCard({
   testResult?: { ok: boolean; message?: string };
   testing: boolean;
   deleting: boolean;
+  canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onTest: () => void;
 }) {
   const title =
     connection.type === "s3"
-      ? connection.bucket ?? connection.base_path
+      ? (connection.bucket ?? connection.base_path)
       : connection.host
         ? `${connection.host}${connection.port ? `:${connection.port}` : ""}`
         : connection.base_path;
@@ -170,50 +215,99 @@ function ConnectionCard({
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 min-w-0">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-default-100 text-default-600">
-              {connection.type === "local" ? <Folder className="h-5 w-5" /> : <Server className="h-5 w-5" />}
+              {connection.type === "local" ? (
+                <Folder className="h-5 w-5" />
+              ) : (
+                <Server className="h-5 w-5" />
+              )}
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="truncate text-base font-semibold">{title}</h2>
-                <Chip size="sm" variant="soft" color="default">{connection.type.toUpperCase()}</Chip>
+                <Chip size="sm" variant="soft" color="default">
+                  {connection.type.toUpperCase()}
+                </Chip>
               </div>
-              <p className="mt-1 truncate font-mono text-xs text-default-400">{connection.id}</p>
+              <p className="mt-1 truncate font-mono text-xs text-default-400">
+                {connection.id}
+              </p>
             </div>
           </div>
-          <Button size="sm" variant="tertiary" onPress={onTest} isPending={testing}>
-            <Wifi className="h-3.5 w-3.5" /> Test
-          </Button>
+          {canManage && (
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={onTest}
+              isPending={testing}
+            >
+              <Wifi className="h-3.5 w-3.5" /> Test
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <InfoTile icon={Folder} label="Base path" value={connection.base_path} />
-          <InfoTile icon={Globe2} label="Public URL" value={connection.public_base_url} />
+          <InfoTile
+            icon={Folder}
+            label="Base path"
+            value={connection.base_path}
+          />
+          <InfoTile
+            icon={Globe2}
+            label="Public URL"
+            value={connection.public_base_url}
+          />
         </div>
 
         {testResult && (
-          <div className={"rounded-2xl border px-3 py-2 text-sm " + (testResult.ok ? "border-success/25 bg-success/10 text-success" : "border-danger/25 bg-danger/10 text-danger")}>
+          <div
+            className={
+              "rounded-2xl border px-3 py-2 text-sm " +
+              (testResult.ok
+                ? "border-success/25 bg-success/10 text-success"
+                : "border-danger/25 bg-danger/10 text-danger")
+            }
+          >
             <div className="flex items-center gap-2 font-medium">
               <CheckCircle2 className="h-4 w-4" />
               {testResult.ok ? "Connection succeeded" : "Connection failed"}
             </div>
-            {!testResult.ok && <p className="mt-1 text-xs">{testResult.message ?? "Unknown error"}</p>}
+            {!testResult.ok && (
+              <p className="mt-1 text-xs">
+                {testResult.message ?? "Unknown error"}
+              </p>
+            )}
           </div>
         )}
 
-        <div className="flex justify-end gap-2 border-t border-default-100 pt-4">
-          <Button size="sm" variant="tertiary" onPress={onEdit}>
-            <Pencil className="h-3.5 w-3.5" /> Edit
-          </Button>
-          <Button size="sm" variant="danger-soft" onPress={onDelete} isPending={deleting}>
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
-        </div>
+        {canManage && (
+          <div className="flex justify-end gap-2 border-t border-default-100 pt-4">
+            <Button size="sm" variant="tertiary" onPress={onEdit}>
+              <Pencil className="h-3.5 w-3.5" /> Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="danger-soft"
+              onPress={onDelete}
+              isPending={deleting}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete
+            </Button>
+          </div>
+        )}
       </div>
     </article>
   );
 }
 
-function InfoTile({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function InfoTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="rounded-2xl border border-default-100 bg-default-50 p-3">
       <div className="mb-1 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-default-500">

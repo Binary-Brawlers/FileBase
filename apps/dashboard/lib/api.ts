@@ -118,12 +118,31 @@ export type LoginResponse = {
 
 export type CurrentUser = { id: string; name: string; email: string };
 
+export type ProjectRole = "owner" | "admin" | "editor" | "viewer";
+
+const PROJECT_ROLE_RANK: Record<ProjectRole, number> = {
+  viewer: 0,
+  editor: 1,
+  admin: 2,
+  owner: 3,
+};
+
+export function hasProjectRole(
+  role: ProjectRole | undefined,
+  required: ProjectRole,
+) {
+  return (
+    role !== undefined && PROJECT_ROLE_RANK[role] >= PROJECT_ROLE_RANK[required]
+  );
+}
+
 export type Project = {
   id: string;
   name: string;
   slug: string;
   created_at: string;
   updated_at: string;
+  role: ProjectRole;
 };
 
 export type CreateProjectRequest = { name: string; slug?: string };
@@ -330,6 +349,84 @@ export type UploadLogFilters = {
   limit?: number;
 };
 
+export type AnalyticsFilters = {
+  project_id?: string;
+  from?: string;
+  to?: string;
+};
+
+export type AnalyticsBreakdown = {
+  key: string;
+  count: number;
+  bytes: number;
+};
+
+export type AnalyticsSummary = {
+  scope: {
+    project_id: string | null;
+    from: string;
+    to: string;
+  };
+  totals: {
+    files: number;
+    storage_bytes: number;
+    projects: number;
+    folders: number;
+  };
+  period: {
+    uploads: number;
+    uploaded_bytes: number;
+    average_file_size: number;
+    duplicate_events: number;
+    failure_events: number;
+    success_rate: number | null;
+  };
+  trend: { date: string; uploads: number; bytes: number }[];
+  mime_types: AnalyticsBreakdown[];
+  storage_types: AnalyticsBreakdown[];
+  folders: AnalyticsBreakdown[];
+  outcomes: { status: string; count: number }[];
+};
+
+export type ProjectMember = {
+  user_id: string;
+  name: string;
+  email: string;
+  role: ProjectRole;
+  joined_at: string;
+};
+
+export type ProjectInvitation = {
+  id: string;
+  project_id: string;
+  email: string;
+  role: Exclude<ProjectRole, "owner">;
+  invited_by: string;
+  inviter_name: string;
+  expires_at: string;
+  created_at: string;
+};
+
+export type CreatedProjectInvitation = ProjectInvitation & {
+  accept_token: string;
+  accept_url: string;
+};
+
+export type InvitationPreview = {
+  project_name: string;
+  email: string;
+  role: Exclude<ProjectRole, "owner">;
+  expires_at: string;
+  existing_account: boolean;
+};
+
+export type AcceptedInvitation = {
+  token: string;
+  user: CurrentUser;
+  project_id: string;
+  role: Exclude<ProjectRole, "owner">;
+};
+
 function queryString(filters?: object) {
   const params = new URLSearchParams();
   Object.entries(filters ?? {}).forEach(([key, value]) => {
@@ -364,6 +461,65 @@ export const api = {
   ) => request<Project>(`/projects/${id}`, { method: "PATCH", body, token }),
   deleteProject: (id: string, token?: string | null) =>
     request<void>(`/projects/${id}`, { method: "DELETE", token }),
+  listProjectMembers: (projectId: string, token?: string | null) =>
+    request<ProjectMember[]>(`/projects/${projectId}/members`, { token }),
+  updateProjectMember: (
+    projectId: string,
+    userId: string,
+    role: Exclude<ProjectRole, "owner">,
+    token?: string | null,
+  ) =>
+    request<{ role: ProjectRole }>(`/projects/${projectId}/members/${userId}`, {
+      method: "PATCH",
+      body: { role },
+      token,
+    }),
+  removeProjectMember: (
+    projectId: string,
+    userId: string,
+    token?: string | null,
+  ) =>
+    request<void>(`/projects/${projectId}/members/${userId}`, {
+      method: "DELETE",
+      token,
+    }),
+  listProjectInvitations: (projectId: string, token?: string | null) =>
+    request<ProjectInvitation[]>(`/projects/${projectId}/invitations`, {
+      token,
+    }),
+  createProjectInvitation: (
+    projectId: string,
+    body: { email: string; role: Exclude<ProjectRole, "owner"> },
+    token?: string | null,
+  ) =>
+    request<CreatedProjectInvitation>(`/projects/${projectId}/invitations`, {
+      method: "POST",
+      body,
+      token,
+    }),
+  revokeProjectInvitation: (
+    projectId: string,
+    invitationId: string,
+    token?: string | null,
+  ) =>
+    request<void>(`/projects/${projectId}/invitations/${invitationId}`, {
+      method: "DELETE",
+      token,
+    }),
+  previewInvitation: (token: string) =>
+    request<InvitationPreview>("/team-invitations/preview", {
+      method: "POST",
+      body: { token },
+    }),
+  acceptInvitation: (body: {
+    token: string;
+    name?: string;
+    password: string;
+  }) =>
+    request<AcceptedInvitation>("/team-invitations/accept", {
+      method: "POST",
+      body,
+    }),
   listStorageConnections: (token?: string | null) =>
     request<StorageConnection[]>("/storage-connections", { token }),
   createStorageConnection: (
@@ -432,6 +588,10 @@ export const api = {
     request<UploadLog[]>(`/files/${id}/logs`, { token }),
   listUploadLogs: (filters?: UploadLogFilters, token?: string | null) =>
     request<UploadLog[]>(`/upload-logs${queryString(filters)}`, { token }),
+  getAnalytics: (filters?: AnalyticsFilters, token?: string | null) =>
+    request<AnalyticsSummary>(`/analytics/summary${queryString(filters)}`, {
+      token,
+    }),
   listWebhooks: (token?: string | null) =>
     request<Webhook[]>("/webhooks", { token }),
   createWebhook: (body: CreateWebhookRequest, token?: string | null) =>

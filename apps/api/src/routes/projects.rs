@@ -12,9 +12,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::entities::project;
+use crate::entities::{project, project_member};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::authorization::{
+    accessible_project_ids, project_role, require_project_role, ProjectRole,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -36,16 +39,18 @@ pub struct ProjectView {
     pub slug: String,
     pub created_at: String,
     pub updated_at: String,
+    pub role: ProjectRole,
 }
 
-impl From<project::Model> for ProjectView {
-    fn from(p: project::Model) -> Self {
+impl ProjectView {
+    fn from_model(p: project::Model, role: ProjectRole) -> Self {
         Self {
             id: p.id,
             name: p.name,
             slug: p.slug,
             created_at: p.created_at.to_rfc3339(),
             updated_at: p.updated_at.to_rfc3339(),
+            role,
         }
     }
 }
@@ -71,20 +76,38 @@ pub async fn create(
     .insert(&state.db)
     .await?;
 
+    project_member::ActiveModel {
+        project_id: Set(inserted.id.clone()),
+        user_id: Set(inserted.user_id.clone()),
+        role: Set(ProjectRole::Owner.as_str().to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+    }
+    .insert(&state.db)
+    .await?;
+
     Ok((
         StatusCode::CREATED,
-        Json(json!({ "data": ProjectView::from(inserted) })),
+        Json(json!({ "data": ProjectView::from_model(inserted, ProjectRole::Owner) })),
     )
         .into_response())
 }
 
 pub async fn list(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Response> {
+    let ids = accessible_project_ids(&state, &auth.claims.sub).await?;
+    if ids.is_empty() {
+        return Ok(Json(json!({ "data": Vec::<ProjectView>::new() })).into_response());
+    }
     let rows = project::Entity::find()
-        .filter(project::Column::UserId.eq(auth.claims.sub.clone()))
+        .filter(project::Column::Id.is_in(ids))
         .order_by_asc(project::Column::CreatedAt)
         .all(&state.db)
         .await?;
-    let view: Vec<ProjectView> = rows.into_iter().map(ProjectView::from).collect();
+    let mut view = Vec::with_capacity(rows.len());
+    for row in rows {
+        let role = project_role(&state, &auth.claims.sub, &row.id).await?;
+        view.push(ProjectView::from_model(row, role));
+    }
     Ok(Json(json!({ "data": view })).into_response())
 }
 
@@ -93,8 +116,9 @@ pub async fn get(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
-    Ok(Json(json!({ "data": ProjectView::from(row) })).into_response())
+    let role = require_project_role(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
+    let row = load_project(&state, &id).await?;
+    Ok(Json(json!({ "data": ProjectView::from_model(row, role) })).into_response())
 }
 
 pub async fn update(
@@ -103,7 +127,8 @@ pub async fn update(
     Path(id): Path<String>,
     Json(payload): Json<UpdateRequest>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let role = require_project_role(&state, &auth.claims.sub, &id, ProjectRole::Admin).await?;
+    let row = load_project(&state, &id).await?;
     let mut active = row.into_active_model();
 
     if let Some(name) = payload.name {
@@ -117,7 +142,7 @@ pub async fn update(
     active.updated_at = Set(Utc::now().into());
 
     let saved = active.update(&state.db).await?;
-    Ok(Json(json!({ "data": ProjectView::from(saved) })).into_response())
+    Ok(Json(json!({ "data": ProjectView::from_model(saved, role) })).into_response())
 }
 
 pub async fn delete(
@@ -125,22 +150,19 @@ pub async fn delete(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    require_project_role(&state, &auth.claims.sub, &id, ProjectRole::Owner).await?;
+    let row = load_project(&state, &id).await?;
     project::Entity::delete_by_id(row.id)
         .exec(&state.db)
         .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
-async fn load_owned(state: &AppState, user_id: &str, id: &str) -> Result<project::Model, ApiError> {
-    let row = project::Entity::find_by_id(id.to_string())
+async fn load_project(state: &AppState, id: &str) -> Result<project::Model, ApiError> {
+    project::Entity::find_by_id(id.to_string())
         .one(&state.db)
         .await?
-        .ok_or(ApiError::NotFound)?;
-    if row.user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
-    Ok(row)
+        .ok_or(ApiError::NotFound)
 }
 
 async fn ensure_slug_available(

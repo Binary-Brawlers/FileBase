@@ -4,12 +4,14 @@ import { Button, Separator, Spinner } from "@heroui/react";
 import {
   KeyRound,
   LayoutDashboard,
+  ChartNoAxesCombined,
   Database,
   FolderOpen,
   ScrollText,
   Boxes,
   Settings,
   Webhook,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,7 +26,13 @@ type NavItem = { key: string; label: string; icon: LucideIcon };
 
 const NAV: NavItem[] = [
   { key: "/dashboard", label: "Overview", icon: LayoutDashboard },
+  {
+    key: "/dashboard/analytics",
+    label: "Analytics",
+    icon: ChartNoAxesCombined,
+  },
   { key: "/dashboard/projects", label: "Projects", icon: Boxes },
+  { key: "/dashboard/team", label: "Team access", icon: UsersRound },
   { key: "/dashboard/files", label: "Files", icon: FolderOpen },
   { key: "/dashboard/logs", label: "Upload logs", icon: ScrollText },
   { key: "/dashboard/presets", label: "Upload presets", icon: Settings },

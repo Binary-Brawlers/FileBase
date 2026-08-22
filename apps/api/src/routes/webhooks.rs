@@ -13,9 +13,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::entities::{project, webhook, webhook_delivery_log};
+use crate::entities::{webhook, webhook_delivery_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::state::AppState;
 
 const ALLOWED_EVENTS: &[&str] = &[
@@ -125,7 +126,13 @@ pub async fn create(
     auth: AuthUser,
     Json(payload): Json<CreateRequest>,
 ) -> ApiResult<Response> {
-    ensure_project_owner(&state, &auth.claims.sub, &payload.project_id).await?;
+    require_project_role(
+        &state,
+        &auth.claims.sub,
+        &payload.project_id,
+        ProjectRole::Editor,
+    )
+    .await?;
     let url = validate_url(&payload.url)?;
     let events = validate_events(payload.events)?;
     let now = Utc::now().into();
@@ -162,7 +169,7 @@ pub async fn create(
 }
 
 pub async fn list(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Response> {
-    let project_ids = owned_project_ids(&state, &auth.claims.sub).await?;
+    let project_ids = accessible_project_ids(&state, &auth.claims.sub).await?;
     if project_ids.is_empty() {
         return Ok(Json(json!({ "data": Vec::<WebhookView>::new() })).into_response());
     }
@@ -180,7 +187,7 @@ pub async fn get(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let row = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
     Ok(Json(json!({ "data": WebhookView::from(row) })).into_response())
 }
 
@@ -190,7 +197,7 @@ pub async fn update(
     Path(id): Path<String>,
     Json(payload): Json<UpdateRequest>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let row = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
     let mut active = row.into_active_model();
     let secret_rotated = payload.secret.is_some();
     if let Some(url) = payload.url {
@@ -222,7 +229,7 @@ pub async fn delete(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let row = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
     let project_id = row.project_id.clone();
     webhook::Entity::delete_by_id(row.id)
         .exec(&state.db)
@@ -241,7 +248,7 @@ pub async fn deliveries(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
-    let row = load_owned(&state, &auth.claims.sub, &id).await?;
+    let row = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Viewer).await?;
     let rows = webhook_delivery_log::Entity::find()
         .filter(webhook_delivery_log::Column::WebhookId.eq(row.id))
         .order_by_desc(webhook_delivery_log::Column::CreatedAt)
@@ -252,36 +259,18 @@ pub async fn deliveries(
     Ok(Json(json!({ "data": view })).into_response())
 }
 
-async fn load_owned(state: &AppState, user_id: &str, id: &str) -> Result<webhook::Model, ApiError> {
+async fn load_accessible(
+    state: &AppState,
+    user_id: &str,
+    id: &str,
+    required: ProjectRole,
+) -> Result<webhook::Model, ApiError> {
     let row = webhook::Entity::find_by_id(id.to_string())
         .one(&state.db)
         .await?
         .ok_or(ApiError::NotFound)?;
-    ensure_project_owner(state, user_id, &row.project_id).await?;
+    require_project_role(state, user_id, &row.project_id, required).await?;
     Ok(row)
-}
-
-async fn ensure_project_owner(
-    state: &AppState,
-    user_id: &str,
-    project_id: &str,
-) -> Result<(), ApiError> {
-    let project = project::Entity::find_by_id(project_id.to_string())
-        .one(&state.db)
-        .await?
-        .ok_or(ApiError::NotFound)?;
-    if project.user_id != user_id {
-        return Err(ApiError::Forbidden);
-    }
-    Ok(())
-}
-
-async fn owned_project_ids(state: &AppState, user_id: &str) -> Result<Vec<String>, ApiError> {
-    let projects = project::Entity::find()
-        .filter(project::Column::UserId.eq(user_id.to_string()))
-        .all(&state.db)
-        .await?;
-    Ok(projects.into_iter().map(|p| p.id).collect())
 }
 
 fn validate_url(url: &str) -> Result<String, ApiError> {

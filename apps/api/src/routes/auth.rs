@@ -97,7 +97,7 @@ pub async fn me(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Resp
     Ok(Json(json!({ "data": PublicUser::from(user) })).into_response())
 }
 
-fn session_cookie(state: &AppState, token: Option<&str>, max_age: i64) -> String {
+pub(crate) fn session_cookie(state: &AppState, token: Option<&str>, max_age: i64) -> String {
     let value = token.unwrap_or_default();
     let secure = if state.config.app_url.starts_with("https://") {
         "; Secure"

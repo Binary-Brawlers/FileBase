@@ -541,7 +541,15 @@ async fn process_upload(
         "file.uploaded",
         "success",
         None,
-        json!({ "path": inserted.path, "url": inserted.url }),
+        json!({
+            "originalName": inserted.original_name,
+            "path": inserted.path,
+            "url": inserted.url,
+            "size": inserted.size,
+            "mimeType": inserted.mime_type,
+            "folder": inserted.folder,
+            "storageConnectionId": inserted.storage_connection_id,
+        }),
     )
     .await?;
     webhooks::emit_file_event(

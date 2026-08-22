@@ -45,9 +45,10 @@ pub async fn enforce(
 
 fn rate_limit_for_path(state: &AppState, path: &str) -> Option<(&'static str, usize)> {
     match path {
-        "/auth/login" | "/setup/initialize" => {
-            Some(("auth", state.config.auth_rate_limit_per_minute))
-        }
+        "/auth/login"
+        | "/setup/initialize"
+        | "/team-invitations/accept"
+        | "/team-invitations/preview" => Some(("auth", state.config.auth_rate_limit_per_minute)),
         "/uploads" | "/uploads/sign" => Some(("upload", state.config.upload_rate_limit_per_minute)),
         _ if path.starts_with("/uploads/") => {
             Some(("upload", state.config.upload_rate_limit_per_minute))

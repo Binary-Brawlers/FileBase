@@ -8,7 +8,14 @@ import {
   TextField,
   useOverlayState,
 } from "@heroui/react";
-import { Boxes, CalendarDays, Fingerprint, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Boxes,
+  CalendarDays,
+  Fingerprint,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { ApiError, type Project } from "../../../lib/api";
 import {
@@ -115,26 +122,36 @@ export function ProjectsPage() {
                 </div>
                 <div className="flex items-center gap-2 rounded-2xl border border-default-100 bg-default-50 px-3 py-2">
                   <CalendarDays className="h-3.5 w-3.5" />
-                  <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
+                  <span>
+                    Created {new Date(project.created_at).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
-              <div className="flex gap-2 border-t border-default-100 pt-3">
-                <Button
-                  size="sm"
-                  variant="tertiary"
-                  onPress={() => openEdit(project)}
-                  className="flex-1"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger-soft"
-                  onPress={() => onDelete(project.id)}
-                  isPending={remove.isPending}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+              <div className="flex items-center gap-2 border-t border-default-100 pt-3">
+                <Chip size="sm" variant="soft" color="accent">
+                  {project.role}
+                </Chip>
+                <span className="flex-1" />
+                {(project.role === "owner" || project.role === "admin") && (
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    onPress={() => openEdit(project)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  </Button>
+                )}
+                {project.role === "owner" && (
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    aria-label={`Delete ${project.name}`}
+                    onPress={() => onDelete(project.id)}
+                    isPending={remove.isPending}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
               </div>
             </article>
           ))}

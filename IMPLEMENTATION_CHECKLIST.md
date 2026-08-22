@@ -11,7 +11,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 - [x] Write Phase 14 documentation guides.
 
-Next code milestone is Phase 16 advanced analytics.
+Next code milestone is Phase 16 hosted SaaS mode.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -248,9 +248,9 @@ Next code milestone is Phase 16 advanced analytics.
 - [x] Add DigitalOcean Spaces adapter.
 - [x] Add Backblaze B2 adapter.
 - [x] Add Wasabi adapter.
-- [ ] Add advanced analytics.
-- [ ] Add team accounts.
-- [ ] Add role-based permissions.
+- [x] Add advanced analytics.
+- [x] Add team accounts.
+- [x] Add role-based permissions.
 - [ ] Add hosted SaaS mode later.
 
 ## Implementation Rule

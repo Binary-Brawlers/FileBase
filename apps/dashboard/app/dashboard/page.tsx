@@ -3,6 +3,7 @@
 import { Card } from "@heroui/react";
 import {
   Database,
+  ChartNoAxesCombined,
   FolderOpen,
   HardDrive,
   KeyRound,
@@ -10,9 +11,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useMe } from "../../lib/queries";
+import { useAnalytics, useMe } from "../../lib/queries";
 import { getToken } from "../../lib/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Stat = {
   label: string;
@@ -22,14 +23,18 @@ type Stat = {
   tone: "accent" | "primary" | "success" | "warning";
 };
 
-const STATS: Stat[] = [
-  { label: "Files", value: "—", hint: "Uploads tracked", icon: FolderOpen, tone: "accent" },
-  { label: "Storage used", value: "—", hint: "Across all backends", icon: HardDrive, tone: "primary" },
-  { label: "Presets", value: "—", hint: "Reusable upload rules", icon: Settings, tone: "success" },
-  { label: "API keys", value: "—", hint: "Active tokens", icon: KeyRound, tone: "warning" },
-];
-
-const QUICK_LINKS: { href: string; title: string; desc: string; icon: LucideIcon }[] = [
+const QUICK_LINKS: {
+  href: string;
+  title: string;
+  desc: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    href: "/dashboard/analytics",
+    title: "Analytics",
+    desc: "Inspect upload volume, storage usage, and outcomes.",
+    icon: ChartNoAxesCombined,
+  },
   {
     href: "/dashboard/files",
     title: "Files",
@@ -60,6 +65,42 @@ export default function DashboardHome() {
   const [token, setToken] = useState<string | null>(null);
   useEffect(() => setToken(getToken()), []);
   const me = useMe(token);
+  const analyticsFilters = useMemo(() => lastDays(30), []);
+  const analytics = useAnalytics(analyticsFilters);
+  const stats: Stat[] = [
+    {
+      label: "Files",
+      value: analytics.data ? formatNumber(analytics.data.totals.files) : "…",
+      hint: "Uploads tracked",
+      icon: FolderOpen,
+      tone: "accent",
+    },
+    {
+      label: "Storage used",
+      value: analytics.data
+        ? formatBytes(analytics.data.totals.storage_bytes)
+        : "…",
+      hint: "Across all backends",
+      icon: HardDrive,
+      tone: "primary",
+    },
+    {
+      label: "30-day uploads",
+      value: analytics.data ? formatNumber(analytics.data.period.uploads) : "…",
+      hint: analytics.data
+        ? formatBytes(analytics.data.period.uploaded_bytes)
+        : "Recent volume",
+      icon: ChartNoAxesCombined,
+      tone: "success",
+    },
+    {
+      label: "Folders",
+      value: analytics.data ? formatNumber(analytics.data.totals.folders) : "…",
+      hint: `${analytics.data?.totals.projects ?? "…"} projects in scope`,
+      icon: Settings,
+      tone: "warning",
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-8">
@@ -73,7 +114,7 @@ export default function DashboardHome() {
       </div>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <StatCard key={s.label} stat={s} />
         ))}
       </section>
@@ -128,6 +169,26 @@ export default function DashboardHome() {
       </section>
     </div>
   );
+}
+
+function lastDays(days: number) {
+  const to = new Date();
+  const from = new Date(to);
+  from.setUTCDate(from.getUTCDate() - (days - 1));
+  from.setUTCHours(0, 0, 0, 0);
+  to.setUTCHours(23, 59, 59, 999);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 ** 3) return `${(value / 1024 ** 2).toFixed(1)} MB`;
+  return `${(value / 1024 ** 3).toFixed(1)} GB`;
 }
 
 function StatCard({ stat }: { stat: Stat }) {
