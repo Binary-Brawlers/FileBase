@@ -1,23 +1,14 @@
 import { LoginForm } from "./LoginForm";
 import { Brand } from "../../components/Brand";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { api } from "../../lib/api";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
-  const status = await api.getSetupStatus().catch(() => null);
-  const isHosted = status?.deployment_mode === "hosted";
-
+export default function LoginPage() {
   return (
     <div className="auth-shell min-h-screen grid lg:grid-cols-[1.1fr_1fr]">
       <aside className="brand-panel dot-grid hidden lg:flex flex-col justify-between p-12 border-r border-default-200">
-        <Brand
-          size="lg"
-          tagline={
-            isHosted ? "Managed file uploads" : "Self-hosted file uploads"
-          }
-        />
+        <Brand size="lg" tagline="Self-hosted file uploads" />
         <div className="flex flex-col gap-4 max-w-md">
           <h2 className="text-3xl font-semibold tracking-tight">
             One dashboard for every upload.
@@ -52,10 +43,7 @@ export default async function LoginPage() {
             <Brand />
             <ThemeToggle />
           </div>
-          <LoginForm
-            hostedMode={isHosted}
-            registrationEnabled={status?.registration_enabled === true}
-          />
+          <LoginForm />
         </div>
       </main>
     </div>

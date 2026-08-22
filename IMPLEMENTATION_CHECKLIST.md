@@ -11,7 +11,7 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 - [x] Write Phase 14 documentation guides.
 
-Next code milestone is the hosted SaaS metering and subscription foundation.
+Next code milestone is the advanced self-hosted media pipeline.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -251,16 +251,15 @@ Next code milestone is the hosted SaaS metering and subscription foundation.
 - [x] Add advanced analytics.
 - [x] Add team accounts.
 - [x] Add role-based permissions.
-- [x] Add explicit self-hosted and hosted deployment modes.
-- [x] Add hosted public registration with per-account starter projects.
-- [x] Add hosted dashboard signup and disable self-hosted onboarding in hosted mode.
-- [ ] Add organization-level tenancy above projects.
-- [ ] Add subscription plans and persisted account entitlements.
-- [ ] Add usage metering and enforce plan limits.
-- [ ] Add billing provider integration and webhook reconciliation.
-- [ ] Add organization audit logs.
-- [ ] Add hosted infrastructure, email verification, and abuse controls.
-- [ ] Complete hosted SaaS mode.
+- [ ] Add AVIF image conversion.
+- [ ] Add configurable image watermarking.
+- [ ] Add video metadata extraction and thumbnail generation.
+- [ ] Add resumable and chunked uploads.
+- [ ] Add persistent administrator audit logs.
+- [ ] Add backup and restore tooling for database and local uploads.
+- [ ] Add operator diagnostics and maintenance controls.
+
+Hosted SaaS, subscriptions, billing, and commercial plan enforcement are intentionally out of scope. FileBase remains a fully self-hosted open-source product.
 
 ## Implementation Rule
 

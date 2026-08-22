@@ -212,57 +212,11 @@ This model is realistic for many developers who have old hosting but can deploy 
 
 ---
 
-## 9. Deployment Model 3 — Hosted SaaS Version
+## 9. Product Scope — Self-Hosted Only
 
-This can be added later.
+FileBase is distributed as software that users operate on infrastructure they control. The repository does not implement an official managed service, subscriptions, billing, commercial plans, or service-wide multi-tenant accounts.
 
-In this model, the project owner provides a hosted version of FileBase.
-
-```text
-Your Cloud Infrastructure
-├── FileBase API
-├── FileBase Workers
-├── FileBase Dashboard
-├── PostgreSQL
-└── Redis
-
-User's FTP/SFTP Server
-└── Final file storage
-```
-
-Upload flow:
-
-```text
-Developer's App
-   ↓
-Hosted FileBase
-   ↓
-Validate + Process File
-   ↓
-Upload to User's FTP/SFTP Server
-   ↓
-Return Public URL
-```
-
-This is easier for users because they do not have to self-host anything.
-
-However, it comes with more responsibilities:
-
-- You store users' encrypted FTP/SFTP credentials.
-- You pay for upload bandwidth and processing.
-- You manage uptime.
-- You manage abuse prevention.
-- You handle user data securely.
-- You need billing and usage limits.
-
-This should not be the MVP.
-
-Recommended approach:
-
-```text
-Start with self-hosted.
-Add hosted SaaS later.
-```
+Teams can still collaborate through project membership and roles inside their own installation. Operators retain control of infrastructure, storage credentials, resource capacity, backups, and upgrades.
 
 ---
 
@@ -798,7 +752,7 @@ Example frontend usage:
 
 ```ts
 await upload(file, {
-  preset: "profile_images"
+  preset: "profile_images",
 });
 ```
 
@@ -846,11 +800,11 @@ Example:
 import { FileBaseClient } from "@binary-brawlers/filebase-client";
 
 const client = new FileBaseClient({
-  signEndpoint: "/api/upload/sign"
+  signEndpoint: "/api/upload/sign",
 });
 
 const result = await client.upload(file, {
-  preset: "profile_images"
+  preset: "profile_images",
 });
 
 console.log(result.url);
@@ -927,7 +881,7 @@ const result = await uploadFile({
   name: "profile.jpg",
   type: "image/jpeg",
   signEndpoint: "https://api.example.com/upload/sign",
-  preset: "profile_images"
+  preset: "profile_images",
 });
 
 console.log(result.url);
@@ -959,7 +913,7 @@ import { createFileBaseRoute } from "@binary-brawlers/filebase-next";
 
 export const POST = createFileBaseRoute({
   apiKey: process.env.FILEBASE_API_KEY,
-  gatewayUrl: process.env.FILEBASE_GATEWAY_URL
+  gatewayUrl: process.env.FILEBASE_GATEWAY_URL,
 });
 ```
 
@@ -991,11 +945,11 @@ import { FileBase } from "@binary-brawlers/filebase-node";
 
 const fileBase = new FileBase({
   apiKey: process.env.FILEBASE_API_KEY,
-  gatewayUrl: process.env.FILEBASE_GATEWAY_URL
+  gatewayUrl: process.env.FILEBASE_GATEWAY_URL,
 });
 
 const session = await fileBase.createUploadSession({
-  preset: "profile_images"
+  preset: "profile_images",
 });
 ```
 
@@ -1031,7 +985,6 @@ Future dashboard features:
 - Usage analytics
 - Team accounts
 - Role-based permissions
-- Billing for hosted version
 - Webhook logs
 - Audit logs
 - Storage usage charts
@@ -1046,7 +999,6 @@ Future dashboard features:
 ```http
 GET /setup/status
 POST /setup/initialize
-POST /auth/register
 POST /auth/login
 GET /auth/me
 POST /auth/logout
@@ -1481,8 +1433,6 @@ The MVP should be focused and practical.
 - AI compression
 - Dynamic image transformations by URL
 - Team accounts
-- Billing
-- Hosted SaaS
 - Advanced analytics
 - CDN integration
 - Watermarking
@@ -1578,25 +1528,23 @@ Features:
 - Advanced thumbnails
 ```
 
-### Version 5 — Hosted SaaS Mode
+### Version 5 — Self-Hosted Operations
 
 Goal:
 
 ```text
-Allow users to use FileBase without self-hosting.
+Make production installations easier to operate and recover.
 ```
 
 Features:
 
 ```text
-- Hosted dashboard
-- Hosted gateway
-- Team accounts
-- Billing
-- Usage limits
-- Organization management
-- Audit logs
-- Subscription plans
+- Persistent administrator audit logs
+- Backup and restore tooling
+- Resumable uploads
+- Operator diagnostics
+- Maintenance controls
+- Upgrade safety checks
 ```
 
 ---

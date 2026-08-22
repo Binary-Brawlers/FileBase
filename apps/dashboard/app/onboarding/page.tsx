@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function OnboardingPage() {
   const status = await api.getSetupStatus().catch(() => null);
   if (status && !status.setup_required) {
-    redirect(status.registration_enabled ? "/signup" : "/login");
+    redirect("/login");
   }
 
   return (

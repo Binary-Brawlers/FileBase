@@ -52,11 +52,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return (parsed?.data ?? parsed) as T;
 }
 
-export type SetupStatus = {
-  setup_required: boolean;
-  deployment_mode: "self_hosted" | "hosted";
-  registration_enabled: boolean;
-};
+export type SetupStatus = { setup_required: boolean };
 
 export type InitializeRequest = {
   admin: { name: string; email: string; password: string };
@@ -119,15 +115,6 @@ export type LoginResponse = {
   token: string;
   user: { id: string; name: string; email: string };
 };
-
-export type RegisterRequest = {
-  name: string;
-  email: string;
-  password: string;
-  project_name?: string;
-};
-
-export type RegisterResponse = LoginResponse & { project_id: string };
 
 export type CurrentUser = { id: string; name: string; email: string };
 
@@ -460,11 +447,6 @@ export const api = {
     request<LoginResponse>("/auth/login", {
       method: "POST",
       body: { email, password },
-    }),
-  register: (body: RegisterRequest) =>
-    request<RegisterResponse>("/auth/register", {
-      method: "POST",
-      body,
     }),
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   me: (token?: string | null) => request<CurrentUser>("/auth/me", { token }),

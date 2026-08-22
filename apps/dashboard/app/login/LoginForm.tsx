@@ -8,7 +8,6 @@ import {
   Label,
   TextField,
 } from "@heroui/react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiError } from "../../lib/api";
@@ -16,13 +15,7 @@ import { setToken } from "../../lib/auth";
 import { useLogin } from "../../lib/queries";
 import { ThemeToggle } from "../../components/ThemeToggle";
 
-export function LoginForm({
-  hostedMode = false,
-  registrationEnabled = false,
-}: {
-  hostedMode?: boolean;
-  registrationEnabled?: boolean;
-}) {
+export function LoginForm() {
   const router = useRouter();
   const login = useLogin();
   const [email, setEmail] = useState("");
@@ -97,31 +90,15 @@ export function LoginForm({
         </form>
       </Card.Content>
       <Card.Footer>
-        {registrationEnabled ? (
-          <p className="text-sm text-default-500">
-            New to FileBase?{" "}
-            <Link
-              href="/signup"
-              className="text-accent font-medium hover:underline"
-            >
-              Create an account
-            </Link>
-          </p>
-        ) : !hostedMode ? (
-          <p className="text-xs text-default-500">
-            Need to set up FileBase?{" "}
-            <Link
-              href="/onboarding"
-              className="text-accent font-medium hover:underline"
-            >
-              Run onboarding
-            </Link>
-          </p>
-        ) : (
-          <p className="text-xs text-default-500">
-            New account registration is currently closed.
-          </p>
-        )}
+        <p className="text-xs text-default-500">
+          Need to set up FileBase?{" "}
+          <a
+            href="/onboarding"
+            className="text-accent font-medium hover:underline"
+          >
+            Run onboarding
+          </a>
+        </p>
       </Card.Footer>
     </Card>
   );

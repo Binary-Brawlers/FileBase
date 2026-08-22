@@ -12,7 +12,6 @@ import {
   type FileFilters,
   type InitializeRequest,
   type ProjectRole,
-  type RegisterRequest,
   type UploadLogFilters,
   type UpdateProjectRequest,
   type UpdateStorageConnectionRequest,
@@ -75,17 +74,6 @@ export function useLogin() {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       api.login(email, password),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.me }),
-  });
-}
-
-export function useRegister() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: RegisterRequest) => api.register(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.me });
-      qc.invalidateQueries({ queryKey: queryKeys.projects });
-    },
   });
 }
 

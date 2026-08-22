@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json_};
 use uuid::Uuid;
 
-use crate::config::DeploymentMode;
 use crate::entities::{project, project_member, storage_connection, upload_preset, user};
 use crate::error::{ApiError, ApiResult};
 use crate::services::authorization::ProjectRole;
@@ -15,21 +14,13 @@ use crate::state::AppState;
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub setup_required: bool,
-    pub deployment_mode: &'static str,
-    pub registration_enabled: bool,
 }
 
 pub async fn status(State(state): State<AppState>) -> ApiResult<Json<Json_>> {
     let count = user::Entity::find().count(&state.db).await?;
     Ok(Json(json!({
         "data": StatusResponse {
-            setup_required: state.config.deployment_mode == DeploymentMode::SelfHosted && count == 0,
-            deployment_mode: match state.config.deployment_mode {
-                DeploymentMode::SelfHosted => "self_hosted",
-                DeploymentMode::Hosted => "hosted",
-            },
-            registration_enabled: state.config.deployment_mode == DeploymentMode::Hosted
-                && state.config.public_registration_enabled,
+            setup_required: count == 0,
         }
     })))
 }
@@ -105,10 +96,6 @@ pub async fn initialize(
     State(state): State<AppState>,
     Json(payload): Json<InitializeRequest>,
 ) -> ApiResult<impl IntoResponse> {
-    if state.config.deployment_mode == DeploymentMode::Hosted {
-        return Err(ApiError::Forbidden);
-    }
-
     let existing = user::Entity::find().count(&state.db).await?;
     if existing > 0 {
         return Err(ApiError::Conflict("setup already completed".into()));
