@@ -17,6 +17,7 @@ use uuid::Uuid;
 use crate::entities::api_key;
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::state::AppState;
 
@@ -97,13 +98,14 @@ pub async fn create(
     .insert(&state.db)
     .await?;
 
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %inserted.project_id,
-        api_key_id = %inserted.id,
-        api_key_prefix = %inserted.prefix,
-        "audit.api_key.created"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "api_key.created")
+            .with_project(&inserted.project_id)
+            .with_resource("api_key", &inserted.id)
+            .with_metadata(json!({ "prefix": inserted.prefix, "name": inserted.name })),
+    )
+    .await?;
 
     Ok((
         StatusCode::CREATED,
@@ -140,13 +142,14 @@ pub async fn revoke(
     let mut active = model.into_active_model();
     active.revoked_at = Set(Some(Utc::now().into()));
     let saved = active.update(&state.db).await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %saved.project_id,
-        api_key_id = %saved.id,
-        api_key_prefix = %saved.prefix,
-        "audit.api_key.revoked"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "api_key.revoked")
+            .with_project(&saved.project_id)
+            .with_resource("api_key", &saved.id)
+            .with_metadata(json!({ "prefix": saved.prefix })),
+    )
+    .await?;
     Ok(Json(json!({ "data": ApiKeyView::from(saved) })).into_response())
 }
 

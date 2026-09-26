@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::entities::{webhook, webhook_delivery_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::state::AppState;
 
@@ -150,12 +151,14 @@ pub async fn create(
     .await?;
 
     let signing_secret = inserted.secret.clone();
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %inserted.project_id,
-        webhook_id = %inserted.id,
-        "audit.webhook.created"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "webhook.created")
+            .with_project(&inserted.project_id)
+            .with_resource("webhook", &inserted.id)
+            .with_metadata(json!({ "url": inserted.url, "events": inserted.events })),
+    )
+    .await?;
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -214,13 +217,14 @@ pub async fn update(
     }
     active.updated_at = Set(Utc::now().into());
     let saved = active.update(&state.db).await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %saved.project_id,
-        webhook_id = %saved.id,
-        secret_rotated,
-        "audit.webhook.updated"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "webhook.updated")
+            .with_project(&saved.project_id)
+            .with_resource("webhook", &saved.id)
+            .with_metadata(json!({ "secretRotated": secret_rotated, "isActive": saved.is_active })),
+    )
+    .await?;
     Ok(Json(json!({ "data": WebhookView::from(saved) })).into_response())
 }
 
@@ -234,12 +238,13 @@ pub async fn delete(
     webhook::Entity::delete_by_id(row.id)
         .exec(&state.db)
         .await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %project_id,
-        webhook_id = %id,
-        "audit.webhook.deleted"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "webhook.deleted")
+            .with_project(&project_id)
+            .with_resource("webhook", &id),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

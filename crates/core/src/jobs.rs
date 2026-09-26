@@ -150,3 +150,82 @@ pub struct ReservedJob {
     pub raw: String,
     pub job: JobEnvelope,
 }
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct QueueDepths {
+    pub pending: i64,
+    pub processing: i64,
+    pub failed: i64,
+}
+
+impl JobQueue {
+    pub async fn depths(&self) -> FileBaseResult<QueueDepths> {
+        let mut connection = self.client.get_multiplexed_async_connection().await?;
+        let pending: i64 = connection.llen(PENDING_QUEUE).await?;
+        let processing: i64 = connection.llen(PROCESSING_QUEUE).await?;
+        let failed: i64 = connection.llen(FAILED_QUEUE).await?;
+        Ok(QueueDepths {
+            pending,
+            processing,
+            failed,
+        })
+    }
+
+    pub async fn list_failed(&self, limit: usize) -> FileBaseResult<Vec<FailedJob>> {
+        let mut connection = self.client.get_multiplexed_async_connection().await?;
+        let raw: Vec<String> = connection.lrange(FAILED_QUEUE, 0, -1).await?;
+        let mut failed = Vec::new();
+        for entry in raw.into_iter().take(limit) {
+            if let Ok(job) = serde_json::from_str::<FailedJob>(&entry) {
+                failed.push(job);
+            }
+        }
+        Ok(failed)
+    }
+
+    pub async fn retry_failed(&self, job_id: &str) -> FileBaseResult<Option<JobEnvelope>> {
+        let mut connection = self.client.get_multiplexed_async_connection().await?;
+        let raw: Vec<String> = connection.lrange(FAILED_QUEUE, 0, -1).await?;
+        for entry in raw {
+            let Ok(failed) = serde_json::from_str::<FailedJob>(&entry) else {
+                continue;
+            };
+            if failed.job.id != job_id {
+                continue;
+            }
+            let _: i64 = redis::cmd("LREM")
+                .arg(FAILED_QUEUE)
+                .arg(1)
+                .arg(&entry)
+                .query_async(&mut connection)
+                .await?;
+            let mut job = failed.job;
+            job.attempts = 0;
+            job.updated_at = Utc::now().to_rfc3339();
+            self.enqueue(&job).await?;
+            return Ok(Some(job));
+        }
+        Ok(None)
+    }
+
+    pub async fn remove_failed(&self, job_id: &str) -> FileBaseResult<bool> {
+        let mut connection = self.client.get_multiplexed_async_connection().await?;
+        let raw: Vec<String> = connection.lrange(FAILED_QUEUE, 0, -1).await?;
+        for entry in raw {
+            let Ok(failed) = serde_json::from_str::<FailedJob>(&entry) else {
+                continue;
+            };
+            if failed.job.id != job_id {
+                continue;
+            }
+            let removed: i64 = redis::cmd("LREM")
+                .arg(FAILED_QUEUE)
+                .arg(1)
+                .arg(&entry)
+                .query_async(&mut connection)
+                .await?;
+            return Ok(removed > 0);
+        }
+        Ok(false)
+    }
+}

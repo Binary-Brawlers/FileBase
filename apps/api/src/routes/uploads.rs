@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
-use filebase_image_processing::process_image;
+use filebase_image_processing::{process_image, ThumbnailImage};
 use filebase_storage::UploadInput;
 use rand::{distributions::Alphanumeric, Rng};
 use sea_orm::{
@@ -25,7 +25,10 @@ use crate::entities::{
     api_key, file, storage_connection, upload_log, upload_preset, upload_session,
 };
 use crate::error::{ApiError, ApiResult};
-use crate::services::{storage_factory, webhooks};
+use crate::services::{
+    audit::{self, AuditEvent},
+    storage_factory, webhooks,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -90,16 +93,16 @@ impl From<file::Model> for FileView {
     }
 }
 
-struct UploadedPart {
-    temp_path: PathBuf,
-    size: u64,
-    hash: String,
-    magic_bytes: Vec<u8>,
-    filename: String,
-    content_type: Option<String>,
-    preset_id: Option<String>,
-    preset: Option<String>,
-    project_id: Option<String>,
+pub(crate) struct UploadedPart {
+    pub(crate) temp_path: PathBuf,
+    pub(crate) size: u64,
+    pub(crate) hash: String,
+    pub(crate) magic_bytes: Vec<u8>,
+    pub(crate) filename: String,
+    pub(crate) content_type: Option<String>,
+    pub(crate) preset_id: Option<String>,
+    pub(crate) preset: Option<String>,
+    pub(crate) project_id: Option<String>,
 }
 
 pub async fn sign(
@@ -140,13 +143,16 @@ pub async fn sign(
     .insert(&state.db)
     .await?;
 
-    tracing::info!(
-        project_id = %project_id,
-        preset_id = %preset.id,
-        upload_session_id = %session_id,
-        expires_at = %expires_at.to_rfc3339(),
-        "audit.upload_session.created"
-    );
+    audit::record(
+        &state,
+        AuditEvent::api_key(&key.id, Some(&project_id), "upload_session.created")
+            .with_resource("upload_session", &session_id)
+            .with_metadata(json!({
+                "presetId": preset.id,
+                "expiresAt": expires_at.to_rfc3339()
+            })),
+    )
+    .await?;
 
     Ok((
         StatusCode::CREATED,
@@ -210,12 +216,13 @@ pub async fn direct_upload(
             return Err(error);
         }
     };
-    tracing::info!(
-        project_id = %preset.project_id,
-        api_key_id = %key_id,
-        file_id = %result.id,
-        "audit.upload.direct_succeeded"
-    );
+    audit::record(
+        &state,
+        AuditEvent::api_key(&key_id, Some(&preset.project_id), "upload.direct_succeeded")
+            .with_resource("file", &result.id)
+            .with_metadata(json!({ "path": result.path, "size": result.size })),
+    )
+    .await?;
     Ok((StatusCode::CREATED, Json(json!({ "data": result }))).into_response())
 }
 
@@ -281,17 +288,19 @@ pub async fn session_upload(
             return Err(error);
         }
     };
-    tracing::info!(
-        project_id = %preset.project_id,
-        upload_session_id = %session.id,
-        file_id = %result.id,
-        "audit.upload.session_succeeded"
-    );
+    audit::record(
+        &state,
+        AuditEvent::system("upload.session_succeeded")
+            .with_project(&preset.project_id)
+            .with_resource("upload_session", &session.id)
+            .with_metadata(json!({ "fileId": result.id, "path": result.path })),
+    )
+    .await?;
 
     Ok((StatusCode::CREATED, Json(json!({ "data": result }))).into_response())
 }
 
-async fn process_upload(
+pub(crate) async fn process_upload(
     state: &AppState,
     preset: &upload_preset::Model,
     input: &UploadedPart,
@@ -358,6 +367,7 @@ async fn process_upload(
     let mut transformation_metadata = json!({});
     let mut original_to_preserve = None;
     let mut thumbnail_to_upload = None;
+    let mut extra_thumbnails_to_upload = Vec::new();
 
     if let Some(processed) = processed {
         bytes = processed.bytes;
@@ -366,6 +376,53 @@ async fn process_upload(
         transformation_metadata = processed.metadata;
         original_to_preserve = processed.original;
         thumbnail_to_upload = processed.thumbnail;
+        extra_thumbnails_to_upload = processed.thumbnails;
+    }
+
+    let mut video_metadata = json!(null);
+    if input_mime_type.starts_with("video/") {
+        let video_preset =
+            filebase_video_processing::parse_video_preset(&preset.transformations_json)
+                .unwrap_or_default();
+        match filebase_video_processing::probe(&state.config.ffprobe_path, &input.temp_path).await {
+            Ok(metadata) => video_metadata = metadata.to_json(),
+            Err(error) => tracing::warn!(
+                project_id = %preset.project_id,
+                error = %error,
+                "video metadata probe skipped"
+            ),
+        }
+        if video_preset.enabled {
+            if video_metadata != json!(null) {
+                transformation_metadata = json!({ "video": video_metadata.clone() });
+            }
+            if let Some(options) = video_preset.thumbnail.as_ref().filter(|o| o.enabled) {
+                match filebase_video_processing::generate_thumbnail(
+                    &state.config.ffmpeg_path,
+                    &input.temp_path,
+                    options,
+                )
+                .await
+                {
+                    Ok(thumbnail) => {
+                        let thumbnail_size = thumbnail.bytes.len() as u64;
+                        thumbnail_to_upload = Some(ThumbnailImage {
+                            bytes: thumbnail.bytes,
+                            mime_type: thumbnail.mime_type,
+                            extension: thumbnail.extension,
+                            width: thumbnail.width,
+                            height: thumbnail.height,
+                            size: thumbnail_size,
+                        });
+                    }
+                    Err(error) => tracing::warn!(
+                        project_id = %preset.project_id,
+                        error = %error,
+                        "video thumbnail generation skipped"
+                    ),
+                }
+            }
+        }
     }
 
     let output_size = i64::try_from(bytes.len())
@@ -444,7 +501,11 @@ async fn process_upload(
     }
 
     let connection = load_storage_connection(state, preset).await?;
-    let adapter = storage_factory::build_adapter(&connection, &state.config.encryption_key)?;
+    let adapter = storage_factory::build_adapter(
+        &connection,
+        &state.config.encryption_key,
+        state.config.cdn_base_url.as_deref(),
+    )?;
     let saved_name =
         generate_saved_name(&preset.filename_strategy, &original_name, &extension, &hash);
     let path = join_relative(upload_folder, &saved_name)?;
@@ -506,6 +567,36 @@ async fn process_upload(
         });
     }
 
+    let mut thumbnail_metadata_list: Vec<JsonValue> = Vec::new();
+    if !thumbnail_metadata.is_null() {
+        thumbnail_metadata_list.push(thumbnail_metadata.clone());
+    }
+    for thumbnail in extra_thumbnails_to_upload {
+        let thumbnail_name = format!(
+            "{saved_stem}-thumb-{}x{}.{}",
+            thumbnail.width, thumbnail.height, thumbnail.extension
+        );
+        let thumbnail_path =
+            join_relative(&format!("{}/thumbnails", upload_folder), &thumbnail_name)?;
+        let thumbnail_uploaded = adapter
+            .upload(UploadInput {
+                path: thumbnail_path,
+                bytes: thumbnail.bytes,
+                content_type: Some(thumbnail.mime_type.clone()),
+            })
+            .await
+            .map_err(|e| ApiError::Internal(anyhow::anyhow!(e)))?;
+        thumbnail_metadata_list.push(json!({
+            "path": thumbnail_uploaded.path,
+            "url": thumbnail_uploaded.url,
+            "mimeType": thumbnail.mime_type,
+            "extension": thumbnail.extension,
+            "width": thumbnail.width,
+            "height": thumbnail.height,
+            "size": thumbnail.size
+        }));
+    }
+
     let now = Utc::now().into();
     let inserted = file::ActiveModel {
         id: Set(new_id("file")),
@@ -524,10 +615,12 @@ async fn process_upload(
         duplicate_of_file_id: Set(None),
         metadata_json: Set(json!({
             "presetId": preset.id,
-            "sessionId": session.map(|s| s.id),
+            "sessionId": session.as_ref().map(|s| s.id.clone()),
             "transformations": transformation_metadata.clone(),
             "original": original_metadata,
-            "thumbnail": thumbnail_metadata
+            "thumbnail": thumbnail_metadata,
+            "thumbnails": thumbnail_metadata_list,
+            "video": video_metadata
         })),
         created_at: Set(now),
         updated_at: Set(now),
@@ -602,7 +695,7 @@ async fn authenticate_api_key(
     Ok(key)
 }
 
-fn extract_bearer_or_key(headers: &HeaderMap) -> Option<String> {
+pub(crate) fn extract_bearer_or_key(headers: &HeaderMap) -> Option<String> {
     headers
         .get("x-api-key")
         .and_then(|v| v.to_str().ok())
@@ -747,14 +840,14 @@ async fn cleanup_optional_temp(temp_path: &Option<PathBuf>) -> Result<(), ApiErr
     }
 }
 
-struct StreamedFile {
-    temp_path: PathBuf,
-    size: u64,
-    hash: String,
-    magic_bytes: Vec<u8>,
+pub(crate) struct StreamedFile {
+    pub(crate) temp_path: PathBuf,
+    pub(crate) size: u64,
+    pub(crate) hash: String,
+    pub(crate) magic_bytes: Vec<u8>,
 }
 
-async fn stream_file_field(
+pub(crate) async fn stream_file_field(
     mut field: axum::extract::multipart::Field<'_>,
     max_upload_size: u64,
 ) -> Result<StreamedFile, ApiError> {
@@ -802,7 +895,7 @@ async fn stream_file_field(
     })
 }
 
-async fn cleanup_upload_temp(input: &UploadedPart) -> Result<(), ApiError> {
+pub(crate) async fn cleanup_upload_temp(input: &UploadedPart) -> Result<(), ApiError> {
     match fs::remove_file(&input.temp_path).await {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -882,6 +975,24 @@ fn magic_mime(bytes: &[u8]) -> Option<&'static str> {
     }
     if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
         return Some("image/webp");
+    }
+    if bytes.len() >= 12 && &bytes[4..8] == b"ftyp" {
+        let brand = &bytes[8..12];
+        if brand == b"avif" || brand == b"avis" {
+            return Some("image/avif");
+        }
+        if brand == b"qt  " {
+            return Some("video/quicktime");
+        }
+        if matches!(
+            brand,
+            b"isom" | b"iso2" | b"mp41" | b"mp42" | b"avc1" | b"dash" | b"M4V " | b"3gp4"
+        ) {
+            return Some("video/mp4");
+        }
+    }
+    if bytes.starts_with(&[0x1a, 0x45, 0xdf, 0xa3]) {
+        return Some("video/webm");
     }
     None
 }
@@ -974,7 +1085,7 @@ async fn write_log(
     Ok(())
 }
 
-fn hash_secret(secret: &str) -> String {
+pub(crate) fn hash_secret(secret: &str) -> String {
     hex_digest(secret.as_bytes())
 }
 
@@ -983,12 +1094,12 @@ fn hex_digest(bytes: &[u8]) -> String {
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn hex_digest_from_hasher(hasher: Sha256) -> String {
+pub(crate) fn hex_digest_from_hasher(hasher: Sha256) -> String {
     let digest = hasher.finalize();
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn random_string(len: usize) -> String {
+pub(crate) fn random_string(len: usize) -> String {
     rand::thread_rng()
         .sample_iter(&Alphanumeric)
         .take(len)
@@ -996,6 +1107,6 @@ fn random_string(len: usize) -> String {
         .collect()
 }
 
-fn new_id(prefix: &str) -> String {
+pub(crate) fn new_id(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
 }

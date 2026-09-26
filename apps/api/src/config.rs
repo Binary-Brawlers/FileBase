@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use serde::Deserialize;
 
@@ -38,6 +39,13 @@ pub struct Config {
     pub auth_rate_limit_per_minute: usize,
     pub upload_rate_limit_per_minute: usize,
     pub default_duplicate_strategy: DuplicateStrategy,
+    pub ffprobe_path: PathBuf,
+    pub ffmpeg_path: PathBuf,
+    pub upload_chunk_size: u64,
+    pub cdn_base_url: Option<String>,
+    pub transform_cache_ttl_seconds: u64,
+    pub transform_max_dimension: u32,
+    pub transform_rate_limit_per_minute: usize,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -115,6 +123,29 @@ impl Config {
             }
         };
 
+        let ffprobe_path =
+            PathBuf::from(optional("FFPROBE_PATH").unwrap_or_else(|| "ffprobe".to_string()));
+        let ffmpeg_path =
+            PathBuf::from(optional("FFMPEG_PATH").unwrap_or_else(|| "ffmpeg".to_string()));
+        let upload_chunk_size = optional("UPLOAD_CHUNK_SIZE")
+            .unwrap_or_else(|| "5242880".to_string())
+            .parse::<u64>()
+            .map_err(|e| ConfigError::Invalid("UPLOAD_CHUNK_SIZE", e.to_string()))?;
+        let cdn_base_url =
+            optional("CDN_BASE_URL").map(|url| url.trim_end_matches('/').to_string());
+        let transform_cache_ttl_seconds = optional("TRANSFORM_CACHE_TTL_SECONDS")
+            .unwrap_or_else(|| "86400".to_string())
+            .parse::<u64>()
+            .map_err(|e| ConfigError::Invalid("TRANSFORM_CACHE_TTL_SECONDS", e.to_string()))?;
+        let transform_max_dimension = optional("TRANSFORM_MAX_DIMENSION")
+            .unwrap_or_else(|| "4096".to_string())
+            .parse::<u32>()
+            .map_err(|e| ConfigError::Invalid("TRANSFORM_MAX_DIMENSION", e.to_string()))?;
+        let transform_rate_limit_per_minute = optional("TRANSFORM_RATE_LIMIT_PER_MINUTE")
+            .unwrap_or_else(|| "240".to_string())
+            .parse::<usize>()
+            .map_err(|e| ConfigError::Invalid("TRANSFORM_RATE_LIMIT_PER_MINUTE", e.to_string()))?;
+
         Ok(Self {
             bind_address,
             app_url,
@@ -133,6 +164,13 @@ impl Config {
             auth_rate_limit_per_minute,
             upload_rate_limit_per_minute,
             default_duplicate_strategy,
+            ffprobe_path,
+            ffmpeg_path,
+            upload_chunk_size,
+            cdn_base_url,
+            transform_cache_ttl_seconds,
+            transform_max_dimension,
+            transform_rate_limit_per_minute,
         })
     }
 }

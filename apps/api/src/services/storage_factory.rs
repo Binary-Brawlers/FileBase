@@ -13,11 +13,15 @@ use crate::services::crypto;
 pub fn build_adapter(
     model: &storage_connection::Model,
     encryption_key: &str,
+    cdn_base_url: Option<&str>,
 ) -> Result<Arc<dyn StorageAdapter>, ApiError> {
+    let public_base_url = cdn_base_url
+        .map(|base| base.trim_end_matches('/').to_string())
+        .unwrap_or_else(|| model.public_base_url.clone());
     match model.r#type.as_str() {
         "local" => Ok(Arc::new(LocalStorageAdapter::new(
             model.base_path.clone(),
-            model.public_base_url.clone(),
+            public_base_url.clone(),
         ))),
         "ftp" => {
             let host = model
@@ -39,7 +43,7 @@ pub fn build_adapter(
                 username,
                 password,
                 base_path: model.base_path.clone(),
-                public_base_url: model.public_base_url.clone(),
+                public_base_url: public_base_url.clone(),
             })))
         }
         "sftp" => {
@@ -66,7 +70,7 @@ pub fn build_adapter(
                 password,
                 private_key,
                 base_path: model.base_path.clone(),
-                public_base_url: model.public_base_url.clone(),
+                public_base_url: public_base_url.clone(),
             })))
         }
         "s3" => {
@@ -96,7 +100,7 @@ pub fn build_adapter(
                 secret_key,
                 force_path_style: model.force_path_style,
                 prefix: model.base_path.clone(),
-                public_base_url: model.public_base_url.clone(),
+                public_base_url,
             })))
         }
         other => Err(ApiError::Validation(format!(

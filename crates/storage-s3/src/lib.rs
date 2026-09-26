@@ -99,6 +99,24 @@ impl StorageAdapter for S3StorageAdapter {
         })
     }
 
+    async fn download(&self, path: &str) -> StorageResult<Vec<u8>> {
+        let key = self.key(path);
+        let output = self
+            .client
+            .get_object()
+            .bucket(&self.config.bucket)
+            .key(&key)
+            .send()
+            .await
+            .map_err(|e| map_err("get", e))?;
+        let bytes = output
+            .body
+            .collect()
+            .await
+            .map_err(|e| map_err("read", e))?;
+        Ok(bytes.into_bytes().to_vec())
+    }
+
     async fn delete(&self, path: &str) -> StorageResult<()> {
         let key = self.key(path);
         match self

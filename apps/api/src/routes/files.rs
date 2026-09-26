@@ -13,6 +13,7 @@ use crate::entities::{file, storage_connection, upload_log};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
 use crate::routes::upload_logs::{self, UploadLogView};
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::services::{storage_factory, webhooks};
 use crate::state::AppState;
@@ -147,7 +148,11 @@ pub async fn delete(
         .one(&state.db)
         .await?
         .ok_or(ApiError::NotFound)?;
-    let adapter = storage_factory::build_adapter(&connection, &state.config.encryption_key)?;
+    let adapter = storage_factory::build_adapter(
+        &connection,
+        &state.config.encryption_key,
+        state.config.cdn_base_url.as_deref(),
+    )?;
     adapter
         .delete(&model.path)
         .await
@@ -155,6 +160,19 @@ pub async fn delete(
     file::Entity::delete_by_id(model.id.clone())
         .exec(&state.db)
         .await?;
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "file.deleted")
+            .with_project(&model.project_id)
+            .with_resource("file", &model.id)
+            .with_metadata(json!({
+                "originalName": model.original_name,
+                "path": model.path,
+                "size": model.size,
+                "mimeType": model.mime_type,
+            })),
+    )
+    .await?;
     upload_logs::record(
         &state,
         &model.project_id,

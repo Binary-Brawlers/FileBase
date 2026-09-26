@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::entities::{project, project_member};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{
     accessible_project_ids, project_role, require_project_role, ProjectRole,
 };
@@ -67,7 +68,7 @@ pub async fn create(
     let now = Utc::now().into();
     let inserted = project::ActiveModel {
         id: Set(new_id("prj")),
-        user_id: Set(auth.claims.sub),
+        user_id: Set(auth.claims.sub.clone()),
         name: Set(name),
         slug: Set(slug),
         created_at: Set(now),
@@ -84,6 +85,15 @@ pub async fn create(
         updated_at: Set(now),
     }
     .insert(&state.db)
+    .await?;
+
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project.created")
+            .with_project(&inserted.id)
+            .with_resource("project", &inserted.id)
+            .with_metadata(json!({ "name": inserted.name, "slug": inserted.slug })),
+    )
     .await?;
 
     Ok((
@@ -142,6 +152,14 @@ pub async fn update(
     active.updated_at = Set(Utc::now().into());
 
     let saved = active.update(&state.db).await?;
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project.updated")
+            .with_project(&saved.id)
+            .with_resource("project", &saved.id)
+            .with_metadata(json!({ "name": saved.name, "slug": saved.slug })),
+    )
+    .await?;
     Ok(Json(json!({ "data": ProjectView::from_model(saved, role) })).into_response())
 }
 
@@ -152,9 +170,19 @@ pub async fn delete(
 ) -> ApiResult<Response> {
     require_project_role(&state, &auth.claims.sub, &id, ProjectRole::Owner).await?;
     let row = load_project(&state, &id).await?;
+    let project_name = row.name.clone();
+    let project_slug = row.slug.clone();
     project::Entity::delete_by_id(row.id)
         .exec(&state.db)
         .await?;
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project.deleted")
+            .with_project(&id)
+            .with_resource("project", &id)
+            .with_metadata(json!({ "name": project_name, "slug": project_slug })),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 

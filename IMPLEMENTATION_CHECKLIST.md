@@ -10,8 +10,10 @@ This checklist turns the full project plan into an ordered implementation path. 
 - [x] Implement MVP SDKs: `@binary-brawlers/filebase-client`, `@binary-brawlers/filebase-react`, `@binary-brawlers/filebase-next`, `@binary-brawlers/filebase-node` (Phase 11).
 - [x] Add one-command installer `scripts/install.sh` (Phase 12).
 - [x] Write Phase 14 documentation guides.
+- [x] Complete the Phase 16 post-MVP expansion (media pipeline, operations, and recovery tooling).
+- [x] Complete Phase 17: the remaining Version 4 and Version 5 roadmap items (dynamic transforms, CDN, advanced thumbnails, and upgrade safety).
 
-Next code milestone is the advanced self-hosted media pipeline.
+All planned checklist items are implemented. Track follow-up work as new issues.
 
 ## Phase 1: Self-Hosted Foundation
 
@@ -251,13 +253,22 @@ Next code milestone is the advanced self-hosted media pipeline.
 - [x] Add advanced analytics.
 - [x] Add team accounts.
 - [x] Add role-based permissions.
-- [ ] Add AVIF image conversion.
-- [ ] Add configurable image watermarking.
-- [ ] Add video metadata extraction and thumbnail generation.
-- [ ] Add resumable and chunked uploads.
-- [ ] Add persistent administrator audit logs.
-- [ ] Add backup and restore tooling for database and local uploads.
-- [ ] Add operator diagnostics and maintenance controls.
+- [x] Add AVIF image conversion.
+- [x] Add configurable image watermarking.
+- [x] Add video metadata extraction and thumbnail generation.
+- [x] Add resumable and chunked uploads.
+- [x] Add persistent administrator audit logs.
+- [x] Add backup and restore tooling for database and local uploads.
+- [x] Add operator diagnostics and maintenance controls.
+
+## Phase 17: Advanced Media And Upgrade Safety
+
+- [x] Add dynamic image transformations by URL.
+- [x] Add advanced thumbnails with multiple preset sizes.
+- [x] Add CDN integration for stored file URLs.
+- [x] Add upgrade safety checks.
+- [x] Add an upgrade script with pre-flight backup and health checks.
+- [x] Document dynamic transforms, CDN setup, and upgrades.
 
 Hosted SaaS, subscriptions, billing, and commercial plan enforcement are intentionally out of scope. FileBase remains a fully self-hosted open-source product.
 

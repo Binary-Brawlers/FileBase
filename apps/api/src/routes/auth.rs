@@ -1,6 +1,6 @@
 use axum::{
     extract::State,
-    http::{header, StatusCode},
+    http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     Json,
 };
@@ -10,9 +10,10 @@ use serde_json::json;
 
 use crate::entities::user;
 use crate::error::{ApiError, ApiResult};
-use crate::middleware::auth::AuthUser;
+use crate::middleware::auth::{extract_token, AuthUser};
 use crate::services::{
-    jwt::{issue_token, TOKEN_TTL_HOURS},
+    audit::{self, AuditEvent},
+    jwt::{decode_token, issue_token, TOKEN_TTL_HOURS},
     password,
 };
 use crate::state::AppState;
@@ -50,29 +51,45 @@ impl From<user::Model> for PublicUser {
 
 pub async fn login(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> ApiResult<Response> {
+    let client = audit::client_context(&headers);
     if payload.email.is_empty() || payload.password.is_empty() {
         return Err(ApiError::Validation(
             "email and password are required".into(),
         ));
     }
 
+    let email = payload.email.to_lowercase();
     let found = user::Entity::find()
-        .filter(user::Column::Email.eq(payload.email.to_lowercase()))
+        .filter(user::Column::Email.eq(email.clone()))
         .one(&state.db)
         .await?;
 
     let user = match found {
         Some(u) if password::verify(&payload.password, &u.password_hash) => u,
         _ => {
-            tracing::warn!("audit.auth.login_failed");
+            audit::record_best_effort(
+                &state,
+                AuditEvent::system("auth.login_failed")
+                    .with_status("failure")
+                    .with_actor_email(&email)
+                    .with_client(&client)
+                    .with_metadata(json!({ "email": email })),
+            )
+            .await;
             return Err(ApiError::Unauthorized);
         }
     };
 
     let token = issue_token(&state.config.jwt_secret, &user.id, &user.email)?;
-    tracing::info!(user_id = %user.id, "audit.auth.login_succeeded");
+    audit::record(
+        &state,
+        AuditEvent::user_identity(&user.id, &user.email, "auth.login_succeeded")
+            .with_client(&client),
+    )
+    .await?;
     let body = Json(json!({
         "data": LoginResponse {
             token: token.clone(),
@@ -83,8 +100,17 @@ pub async fn login(
     Ok((StatusCode::OK, [(header::SET_COOKIE, cookie)], body).into_response())
 }
 
-pub async fn logout(State(state): State<AppState>) -> Response {
-    tracing::info!("audit.auth.logout");
+pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Response {
+    let client = audit::client_context(&headers);
+    if let Some(claims) = extract_token(&headers)
+        .and_then(|token| decode_token(&state.config.jwt_secret, &token).ok())
+    {
+        audit::record_best_effort(
+            &state,
+            AuditEvent::user(&claims, "auth.logout").with_client(&client),
+        )
+        .await;
+    }
     let cookie = session_cookie(&state, None, 0);
     (StatusCode::NO_CONTENT, [(header::SET_COOKIE, cookie)]).into_response()
 }

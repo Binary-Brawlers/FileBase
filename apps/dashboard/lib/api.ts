@@ -388,6 +388,114 @@ export type AnalyticsSummary = {
   outcomes: { status: string; count: number }[];
 };
 
+export type AuditLogRecord = {
+  id: string;
+  actor_type: string;
+  actor_id: string | null;
+  actor_email: string | null;
+  project_id: string | null;
+  action: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  status: string;
+  ip_address: string | null;
+  user_agent: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type AuditLogFilters = {
+  project_id?: string;
+  actor_id?: string;
+  action?: string;
+  status?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type Diagnostics = {
+  version: string;
+  uptimeSeconds: number;
+  database: {
+    ok: boolean;
+    sizeBytes: number | null;
+    users: number;
+    projects: number;
+    files: number;
+    fileBytes: number;
+  };
+  redis: {
+    ok: boolean;
+    pendingJobs: number | null;
+    processingJobs: number | null;
+    failedJobs: number | null;
+  };
+  storage: {
+    localPath: string;
+    localFiles: number;
+    localBytes: number;
+    tempFiles: number;
+    tempBytes: number;
+    pendingUploadSessions: number;
+    chunkRows: number;
+    chunkBytes: number;
+    transformCacheFiles: number;
+    transformCacheBytes: number;
+  };
+  media: { ffmpegAvailable: boolean; ffprobeAvailable: boolean };
+  limits: {
+    maxUploadSize: number;
+    uploadChunkSize: number;
+    authRateLimitPerMinute: number;
+    uploadRateLimitPerMinute: number;
+  };
+};
+
+export type FailedJob = {
+  job: {
+    id: string;
+    kind: string;
+    payload: Record<string, unknown>;
+    attempts: number;
+    max_attempts: number;
+    created_at: string;
+    updated_at: string;
+  };
+  error: string;
+  failed_at: string;
+};
+
+export type CleanupScope =
+  | "temp"
+  | "sessions"
+  | "chunks"
+  | "transform_cache"
+  | "audit_logs"
+  | "all";
+
+export type UpgradeCheckItem = {
+  name: string;
+  status: "ok" | "warning" | "error";
+  message: string;
+};
+
+export type UpgradeCheck = {
+  currentVersion: string;
+  upgradeSafe: boolean;
+  appliedMigrations: number;
+  pendingMigrations: number;
+  pendingMigrationNames: string[];
+  checks: UpgradeCheckItem[];
+};
+
+export type CleanupResult = {
+  scope: CleanupScope;
+  removedCount: number;
+  removedBytes: number;
+};
+
 export type ProjectMember = {
   user_id: string;
   name: string;
@@ -605,4 +713,31 @@ export const api = {
     request<void>(`/webhooks/${id}`, { method: "DELETE", token }),
   getWebhookDeliveries: (id: string, token?: string | null) =>
     request<WebhookDeliveryLog[]>(`/webhooks/${id}/deliveries`, { token }),
+  listAuditLogs: (filters?: AuditLogFilters, token?: string | null) =>
+    request<AuditLogRecord[]>(`/audit-logs${queryString(filters)}`, { token }),
+  getDiagnostics: (token?: string | null) =>
+    request<Diagnostics>("/admin/diagnostics", { token }),
+  getUpgradeCheck: (token?: string | null) =>
+    request<UpgradeCheck>("/admin/upgrade-check", { token }),
+  listFailedJobs: (limit?: number, token?: string | null) =>
+    request<FailedJob[]>(`/admin/jobs/failed${queryString({ limit })}`, {
+      token,
+    }),
+  retryJob: (jobId: string, token?: string | null) =>
+    request<unknown>(`/admin/jobs/${jobId}/retry`, { method: "POST", token }),
+  deleteJob: (jobId: string, token?: string | null) =>
+    request<void>(`/admin/jobs/${jobId}`, { method: "DELETE", token }),
+  runCleanup: (
+    body: {
+      scope: CleanupScope;
+      older_than_hours?: number;
+      older_than_days?: number;
+    },
+    token?: string | null,
+  ) =>
+    request<CleanupResult>("/admin/maintenance/cleanup", {
+      method: "POST",
+      body,
+      token,
+    }),
 };

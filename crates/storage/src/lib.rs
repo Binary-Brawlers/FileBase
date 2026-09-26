@@ -32,6 +32,7 @@ pub struct UploadResult {
 #[async_trait]
 pub trait StorageAdapter: Send + Sync {
     async fn upload(&self, input: UploadInput) -> StorageResult<UploadResult>;
+    async fn download(&self, path: &str) -> StorageResult<Vec<u8>>;
     async fn delete(&self, path: &str) -> StorageResult<()>;
     async fn exists(&self, path: &str) -> StorageResult<bool>;
     async fn public_url(&self, path: &str) -> StorageResult<String>;

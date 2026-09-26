@@ -22,6 +22,7 @@ use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
 use crate::routes::auth::{session_cookie, PublicUser};
 use crate::services::{
+    audit::{self, AuditEvent},
     authorization::{require_project_role, ProjectRole},
     jwt::{issue_token, TOKEN_TTL_HOURS},
     password,
@@ -165,13 +166,14 @@ pub async fn update_member(
     active.role = Set(payload.role.as_str().to_string());
     active.updated_at = Set(Utc::now().into());
     let saved = active.update(&state.db).await?;
-    tracing::info!(
-        actor_user_id = %auth.claims.sub,
-        project_id = %saved.project_id,
-        member_user_id = %saved.user_id,
-        role = %saved.role,
-        "audit.project_member.updated"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project_member.updated")
+            .with_project(&saved.project_id)
+            .with_resource("project_member", &saved.user_id)
+            .with_metadata(json!({ "role": saved.role })),
+    )
+    .await?;
     Ok(Json(json!({ "data": { "role": payload.role } })).into_response())
 }
 
@@ -192,12 +194,13 @@ pub async fn remove_member(
     project_member::Entity::delete_by_id((project_id.clone(), user_id.clone()))
         .exec(&state.db)
         .await?;
-    tracing::info!(
-        actor_user_id = %auth.claims.sub,
-        project_id = %project_id,
-        member_user_id = %user_id,
-        "audit.project_member.removed"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project_member.removed")
+            .with_project(&project_id)
+            .with_resource("project_member", &user_id),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -281,13 +284,14 @@ pub async fn create_invitation(
         "{}/accept-invite#token={token}",
         state.config.dashboard_url.trim_end_matches('/')
     );
-    tracing::info!(
-        actor_user_id = %auth.claims.sub,
-        project_id = %project_id,
-        invitation_id = %invitation.id,
-        role = %invitation.role.as_str(),
-        "audit.project_invitation.created"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project_invitation.created")
+            .with_project(&project_id)
+            .with_resource("project_invitation", &invitation.id)
+            .with_metadata(json!({ "role": invitation.role.as_str(), "email": invitation.email })),
+    )
+    .await?;
     Ok((
         StatusCode::CREATED,
         Json(json!({
@@ -317,12 +321,13 @@ pub async fn revoke_invitation(
     project_invitation::Entity::delete_by_id(invitation_id.clone())
         .exec(&state.db)
         .await?;
-    tracing::info!(
-        actor_user_id = %auth.claims.sub,
-        project_id = %project_id,
-        invitation_id = %invitation_id,
-        "audit.project_invitation.revoked"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "project_invitation.revoked")
+            .with_project(&project_id)
+            .with_resource("project_invitation", &invitation_id),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -417,18 +422,21 @@ pub async fn accept_invitation(
     .insert(&transaction)
     .await?;
     let project_id = invitation.project_id.clone();
+    let invitation_id = invitation.id.clone();
     let mut active_invitation = invitation.into_active_model();
     active_invitation.accepted_at = Set(Some(now));
     active_invitation.update(&transaction).await?;
     transaction.commit().await?;
 
     let token = issue_token(&state.config.jwt_secret, &account.id, &account.email)?;
-    tracing::info!(
-        user_id = %account.id,
-        project_id = %project_id,
-        role = %role.as_str(),
-        "audit.project_invitation.accepted"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user_identity(&account.id, &account.email, "project_invitation.accepted")
+            .with_project(&project_id)
+            .with_resource("project_invitation", &invitation_id)
+            .with_metadata(json!({ "role": role.as_str() })),
+    )
+    .await?;
     let cookie = session_cookie(&state, Some(&token), TOKEN_TTL_HOURS * 3600);
     Ok((
         StatusCode::OK,

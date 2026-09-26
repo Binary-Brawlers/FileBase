@@ -57,6 +57,11 @@ impl StorageAdapter for LocalStorageAdapter {
         })
     }
 
+    async fn download(&self, path: &str) -> StorageResult<Vec<u8>> {
+        let target = self.resolve(path)?;
+        fs::read(&target).await.map_err(io_err)
+    }
+
     async fn delete(&self, path: &str) -> StorageResult<()> {
         let target = self.resolve(path)?;
         match fs::remove_file(&target).await {

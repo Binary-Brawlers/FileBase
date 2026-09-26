@@ -11,6 +11,7 @@ members = [
   "crates/storage-sftp",
   "crates/storage-s3",
   "crates/image-processing",
+  "crates/video-processing",
 ]
 
 [workspace.package]
@@ -23,7 +24,7 @@ rust-version = "1.88"
 anyhow = "1"
 async-trait = "0.1"
 thiserror = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs", "io-util"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "fs", "io-util", "process"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 axum = "0.7"
@@ -43,6 +44,8 @@ sha2 = "0.10"
 base64 = "0.22"
 rand = "0.8"
 serde_json = "1"
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp", "avif"] }
+font8x8 = { version = "0.3", features = ["unicode"] }
 hmac = "0.12"
+fs2 = "0.4"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }

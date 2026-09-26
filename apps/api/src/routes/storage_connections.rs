@@ -15,6 +15,7 @@ use uuid::Uuid;
 use crate::entities::storage_connection;
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::services::{crypto, storage_factory};
 use crate::state::AppState;
@@ -141,13 +142,14 @@ pub async fn create(
         now,
     )?;
     let inserted = model.insert(&state.db).await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        project_id = %payload.project_id,
-        storage_connection_id = %inserted.id,
-        storage_type = %inserted.r#type,
-        "audit.storage_connection.created"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "storage_connection.created")
+            .with_project(&inserted.project_id)
+            .with_resource("storage_connection", &inserted.id)
+            .with_metadata(json!({ "type": inserted.r#type })),
+    )
+    .await?;
     Ok((
         StatusCode::CREATED,
         Json(json!({ "data": StorageConnectionView::from(inserted) })),
@@ -232,12 +234,14 @@ pub async fn update(
     active.updated_at = Set(Utc::now().into());
 
     let saved = active.update(&state.db).await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        storage_connection_id = %saved.id,
-        storage_type = %saved.r#type,
-        "audit.storage_connection.updated"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "storage_connection.updated")
+            .with_project(&saved.project_id)
+            .with_resource("storage_connection", &saved.id)
+            .with_metadata(json!({ "type": saved.r#type })),
+    )
+    .await?;
     Ok(Json(json!({ "data": StorageConnectionView::from(saved) })).into_response())
 }
 
@@ -252,13 +256,14 @@ pub async fn delete(
     storage_connection::Entity::delete_by_id(model.id)
         .exec(&state.db)
         .await?;
-    tracing::info!(
-        user_id = %auth.claims.sub,
-        storage_connection_id = %id,
-        project_id = %project_id,
-        storage_type = %storage_type,
-        "audit.storage_connection.deleted"
-    );
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "storage_connection.deleted")
+            .with_project(&project_id)
+            .with_resource("storage_connection", &id)
+            .with_metadata(json!({ "type": storage_type })),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -268,23 +273,28 @@ pub async fn test(
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
     let model = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Admin).await?;
-    let adapter = storage_factory::build_adapter(&model, &state.config.encryption_key)?;
+    let adapter = storage_factory::build_adapter(&model, &state.config.encryption_key, None)?;
     let body = match adapter.health_check().await {
         Ok(()) => {
-            tracing::info!(
-                user_id = %auth.claims.sub,
-                storage_connection_id = %id,
-                "audit.storage_connection.test_succeeded"
-            );
+            audit::record(
+                &state,
+                AuditEvent::user(&auth.claims, "storage_connection.test_succeeded")
+                    .with_project(&model.project_id)
+                    .with_resource("storage_connection", &id),
+            )
+            .await?;
             json!({ "data": { "ok": true } })
         }
         Err(e) => {
-            tracing::warn!(
-                user_id = %auth.claims.sub,
-                storage_connection_id = %id,
-                error = %e,
-                "audit.storage_connection.test_failed"
-            );
+            audit::record_best_effort(
+                &state,
+                AuditEvent::user(&auth.claims, "storage_connection.test_failed")
+                    .with_status("failure")
+                    .with_project(&model.project_id)
+                    .with_resource("storage_connection", &id)
+                    .with_metadata(json!({ "error": e.to_string() })),
+            )
+            .await;
             json!({ "data": { "ok": false, "message": e.to_string() } })
         }
     };

@@ -1,13 +1,17 @@
 pub mod analytics;
 pub mod api_keys;
+pub mod audit_logs;
 pub mod auth;
 pub mod files;
 pub mod folders;
 pub mod health;
+pub mod operator;
 pub mod projects;
 pub mod setup;
 pub mod storage_connections;
 pub mod team;
+pub mod transform;
+pub mod upload_chunks;
 pub mod upload_logs;
 pub mod upload_presets;
 pub mod uploads;
@@ -82,6 +86,27 @@ pub fn router() -> Router<AppState> {
         .route("/uploads/sign", post(uploads::sign))
         .route("/uploads", post(uploads::direct_upload))
         .route("/uploads/:session_id", post(uploads::session_upload))
+        .route(
+            "/uploads/:session_id/chunks",
+            post(upload_chunks::upload_chunk)
+                .get(upload_chunks::list_chunks)
+                .delete(upload_chunks::abort_chunks),
+        )
+        .route(
+            "/uploads/:session_id/complete",
+            post(upload_chunks::complete_chunked_upload),
+        )
+        .route("/audit-logs", get(audit_logs::list))
+        .route("/transform/:preset/:file_id", get(transform::fetch))
+        .route("/admin/diagnostics", get(operator::diagnostics))
+        .route("/admin/upgrade-check", get(operator::upgrade_check))
+        .route("/admin/jobs/failed", get(operator::failed_jobs))
+        .route("/admin/jobs/:job_id/retry", post(operator::retry_job))
+        .route(
+            "/admin/jobs/:job_id",
+            axum::routing::delete(operator::delete_job),
+        )
+        .route("/admin/maintenance/cleanup", post(operator::cleanup))
         .route("/files", get(files::list))
         .route("/folders", get(folders::list))
         .route("/files/:id", get(files::get).delete(files::delete))

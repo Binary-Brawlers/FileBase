@@ -1,9 +1,11 @@
 pub mod api_key;
+pub mod audit_log;
 pub mod file;
 pub mod project;
 pub mod project_invitation;
 pub mod project_member;
 pub mod storage_connection;
+pub mod upload_chunk;
 pub mod upload_log;
 pub mod upload_preset;
 pub mod upload_session;

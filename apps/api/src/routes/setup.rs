@@ -1,4 +1,4 @@
-use axum::{extract::State, response::IntoResponse, Json};
+use axum::{extract::State, http::HeaderMap, response::IntoResponse, Json};
 use chrono::Utc;
 use sea_orm::{ActiveModelTrait, EntityTrait, PaginatorTrait, Set};
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,10 @@ use uuid::Uuid;
 use crate::entities::{project, project_member, storage_connection, upload_preset, user};
 use crate::error::{ApiError, ApiResult};
 use crate::services::authorization::ProjectRole;
-use crate::services::{crypto, password};
+use crate::services::{
+    audit::{self, AuditEvent},
+    crypto, password,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -94,8 +97,10 @@ pub struct InitializeResponse {
 
 pub async fn initialize(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<InitializeRequest>,
 ) -> ApiResult<impl IntoResponse> {
+    let client = audit::client_context(&headers);
     let existing = user::Entity::find().count(&state.db).await?;
     if existing > 0 {
         return Err(ApiError::Conflict("setup already completed".into()));
@@ -165,13 +170,22 @@ pub async fn initialize(
     let preset_model = build_preset(payload.preset, &project_id, &preset_id, &storage_id, now)?;
     preset_model.insert(&state.db).await?;
 
-    tracing::info!(
-        user_id = %user_id,
-        project_id = %project_id,
-        storage_connection_id = %storage_id,
-        upload_preset_id = %preset_id,
-        "audit.setup.initialized"
-    );
+    let admin_email = payload.admin.email.trim().to_lowercase();
+    audit::record(
+        &state,
+        AuditEvent::system("setup.initialized")
+            .with_actor_email(&admin_email)
+            .with_project(&project_id)
+            .with_resource("project", &project_id)
+            .with_client(&client)
+            .with_metadata(json!({
+                "userId": user_id,
+                "storageConnectionId": storage_id,
+                "uploadPresetId": preset_id,
+                "email": admin_email,
+            })),
+    )
+    .await?;
 
     Ok(Json(json!({
         "data": InitializeResponse {

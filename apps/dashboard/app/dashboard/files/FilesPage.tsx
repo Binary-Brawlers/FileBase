@@ -11,6 +11,7 @@ import {
   Info,
   Search,
   Trash2,
+  Wand2,
 } from "lucide-react";
 import { useDeferredValue, useState } from "react";
 import {
@@ -66,11 +67,13 @@ export function FilesPage() {
     if (!confirm(`Delete ${file.original_name} from storage and FileBase?`))
       return;
     setError(null);
+    const wasSelected = selected?.id === file.id;
+    if (wasSelected) setSelected(null);
     try {
       await remove.mutateAsync(file.id);
-      if (selected?.id === file.id) setSelected(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Delete failed.");
+      if (wasSelected) setSelected(file);
     }
   }
 
@@ -358,6 +361,24 @@ function FileDetails({
   }[];
   logsLoading: boolean;
 }) {
+  const metadata = file.metadata ?? {};
+  const transformations = asRecord(metadata.transformations);
+  const image = asRecord(transformations?.image);
+  const output = asRecord(image?.output);
+  const watermark = asRecord(image?.watermark);
+  const video = asRecord(metadata.video) ?? asRecord(transformations?.video);
+  const thumbnail = asRecord(metadata.thumbnail);
+  const thumbnailUrl =
+    typeof thumbnail?.url === "string" ? thumbnail.url : null;
+  const thumbnailList = Array.isArray(metadata.thumbnails)
+    ? metadata.thumbnails
+        .map((entry) => asRecord(entry))
+        .filter((entry): entry is Record<string, unknown> => entry !== null)
+    : [];
+  const thumbnailSummary = thumbnailList.length
+    ? thumbnailList.map((entry) => `${entry.width}×${entry.height}`).join(", ")
+    : null;
+
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -384,6 +405,61 @@ function FileDetails({
           value={new Date(file.updated_at).toLocaleString()}
         />
       </dl>
+      {(output || watermark || video || thumbnailUrl) && (
+        <div className="border-t border-default-100 pt-4">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+            <Wand2 className="h-4 w-4" /> Processing
+          </h3>
+          <dl className="grid gap-3 text-sm">
+            {output && (
+              <InfoRow
+                label="Image output"
+                value={[
+                  output.mimeType,
+                  output.width && output.height
+                    ? `${output.width}×${output.height}`
+                    : null,
+                  output.quality ? `quality ${output.quality}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
+            {watermark && (
+              <InfoRow
+                label="Watermark"
+                value={[
+                  watermark.type,
+                  watermark.position,
+                  watermark.applyToThumbnail ? "applied to thumbnail" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
+            {thumbnailSummary && (
+              <InfoRow label="Thumbnails" value={thumbnailSummary} />
+            )}
+            {video && (
+              <InfoRow
+                label="Video"
+                value={[
+                  video.width && video.height
+                    ? `${video.width}×${video.height}`
+                    : null,
+                  typeof video.codec === "string" ? video.codec : null,
+                  typeof video.durationSeconds === "number"
+                    ? `${video.durationSeconds.toFixed(1)}s`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              />
+            )}
+          </dl>
+          {thumbnailUrl && <ThumbnailPreview url={thumbnailUrl} />}
+        </div>
+      )}
       <div className="border-t border-default-100 pt-4">
         <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <CalendarDays className="h-4 w-4" /> Upload logs
@@ -424,6 +500,25 @@ function FileDetails({
       </div>
     </div>
   );
+}
+
+function ThumbnailPreview({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <img
+      src={url}
+      alt="Generated thumbnail"
+      onError={() => setFailed(true)}
+      className="mt-3 w-full max-w-[240px] rounded-2xl border border-default-200"
+    />
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
 function InfoRow({

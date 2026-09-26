@@ -12,6 +12,7 @@ pub struct AppState {
     pub redis: redis::Client,
     pub config: Arc<Config>,
     pub rate_limiter: Arc<RateLimiter>,
+    pub started_at: Instant,
 }
 
 #[derive(Default)]

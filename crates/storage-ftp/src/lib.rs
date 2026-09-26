@@ -88,6 +88,25 @@ impl StorageAdapter for FtpStorageAdapter {
         })
     }
 
+    async fn download(&self, path: &str) -> StorageResult<Vec<u8>> {
+        let cfg = self.config.clone();
+        let path = path.to_string();
+        task::spawn_blocking(move || -> StorageResult<Vec<u8>> {
+            let mut stream = FtpStorageAdapter::new(cfg.clone()).connect()?;
+            let full = join_path(&cfg.base_path, &path);
+            let mut reader = stream
+                .retr_as_buffer(&full)
+                .map_err(|e| StorageError::Backend(format!("ftp retr {full}: {e}")))?;
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(&mut reader, &mut bytes)
+                .map_err(|e| StorageError::Io(format!("ftp read: {e}")))?;
+            let _ = stream.quit();
+            Ok(bytes)
+        })
+        .await
+        .map_err(|e| StorageError::Backend(format!("ftp task join: {e}")))?
+    }
+
     async fn delete(&self, path: &str) -> StorageResult<()> {
         let cfg = self.config.clone();
         let path = path.to_string();

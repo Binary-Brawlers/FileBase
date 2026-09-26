@@ -1,3 +1,4 @@
+pub mod audit;
 pub mod authorization;
 pub mod crypto;
 pub mod jwt;

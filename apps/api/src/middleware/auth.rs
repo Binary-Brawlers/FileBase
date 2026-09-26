@@ -9,15 +9,15 @@ use crate::state::AppState;
 
 const TOKEN_COOKIE: &str = "filebase_session";
 
-fn extract_token(parts: &Parts) -> Option<String> {
-    if let Some(value) = parts.headers.get(header::AUTHORIZATION) {
+pub(crate) fn extract_token(headers: &axum::http::HeaderMap) -> Option<String> {
+    if let Some(value) = headers.get(header::AUTHORIZATION) {
         if let Ok(s) = value.to_str() {
             if let Some(token) = s.strip_prefix("Bearer ") {
                 return Some(token.to_string());
             }
         }
     }
-    if let Some(value) = parts.headers.get(header::COOKIE) {
+    if let Some(value) = headers.get(header::COOKIE) {
         if let Ok(s) = value.to_str() {
             for part in s.split(';') {
                 let part = part.trim();
@@ -42,7 +42,7 @@ impl FromRequestParts<AppState> for AuthUser {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let token = extract_token(parts).ok_or(ApiError::Unauthorized)?;
+        let token = extract_token(&parts.headers).ok_or(ApiError::Unauthorized)?;
         let claims = decode_token(&state.config.jwt_secret, &token)?;
         Ok(AuthUser { claims })
     }

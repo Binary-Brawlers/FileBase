@@ -28,8 +28,10 @@ aes-gcm.workspace = true
 sha2.workspace = true
 base64.workspace = true
 rand.workspace = true
+fs2.workspace = true
 filebase-core = { path = "../../crates/core" }
 filebase-image-processing = { path = "../../crates/image-processing" }
+filebase-video-processing = { path = "../../crates/video-processing" }
 filebase-migration = { path = "../../crates/migration" }
 filebase-storage = { path = "../../crates/storage" }
 filebase-storage-local = { path = "../../crates/storage-local" }

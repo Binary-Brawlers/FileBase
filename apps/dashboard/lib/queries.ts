@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   api,
   type AnalyticsFilters,
+  type AuditLogFilters,
+  type CleanupScope,
   type CreateApiKeyRequest,
   type CreateProjectRequest,
   type CreateStorageConnectionRequest,
@@ -43,6 +45,12 @@ export const queryKeys = {
   webhooks: ["webhooks"] as const,
   webhookDeliveries: (id?: string | null) =>
     ["webhooks", id, "deliveries"] as const,
+  auditLogs: (filters?: AuditLogFilters) =>
+    ["audit-logs", filters ?? {}] as const,
+  diagnostics: ["admin", "diagnostics"] as const,
+  upgradeCheck: ["admin", "upgrade-check"] as const,
+  failedJobs: (limit?: number) =>
+    ["admin", "jobs", "failed", limit ?? 50] as const,
 };
 
 export function useSetupStatus() {
@@ -430,5 +438,80 @@ export function useWebhookDeliveries(id?: string | null) {
     queryKey: queryKeys.webhookDeliveries(id),
     queryFn: () => api.getWebhookDeliveries(id!, getToken()),
     enabled: !!id,
+  });
+}
+
+export function useAuditLogs(filters?: AuditLogFilters) {
+  return useQuery({
+    queryKey: queryKeys.auditLogs(filters),
+    queryFn: () => api.listAuditLogs(filters, getToken()),
+  });
+}
+
+export function useDiagnostics() {
+  return useQuery({
+    queryKey: queryKeys.diagnostics,
+    queryFn: () => api.getDiagnostics(getToken()),
+    refetchInterval: 30000,
+  });
+}
+
+export function useUpgradeCheck() {
+  return useQuery({
+    queryKey: queryKeys.upgradeCheck,
+    queryFn: () => api.getUpgradeCheck(getToken()),
+  });
+}
+
+export function useFailedJobs(limit?: number) {
+  return useQuery({
+    queryKey: queryKeys.failedJobs(limit),
+    queryFn: () => api.listFailedJobs(limit, getToken()),
+  });
+}
+
+export function useRetryJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) => api.retryJob(jobId, getToken()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    },
+  });
+}
+
+export function useDeleteJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) => api.deleteJob(jobId, getToken()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    },
+  });
+}
+
+export function useRunCleanup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      scope,
+      olderThanHours,
+      olderThanDays,
+    }: {
+      scope: CleanupScope;
+      olderThanHours?: number;
+      olderThanDays?: number;
+    }) =>
+      api.runCleanup(
+        {
+          scope,
+          older_than_hours: olderThanHours,
+          older_than_days: olderThanDays,
+        },
+        getToken(),
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin"] });
+    },
   });
 }

@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::Utc;
 use filebase_image_processing::validate_transformations_json;
+use filebase_video_processing::validate_video_transformations_json;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, Set,
 };
@@ -16,6 +17,7 @@ use uuid::Uuid;
 use crate::entities::{storage_connection, upload_preset};
 use crate::error::{ApiError, ApiResult};
 use crate::middleware::auth::AuthUser;
+use crate::services::audit::{self, AuditEvent};
 use crate::services::authorization::{accessible_project_ids, require_project_role, ProjectRole};
 use crate::state::AppState;
 
@@ -131,6 +133,15 @@ pub async fn create(
     .insert(&state.db)
     .await?;
 
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "upload_preset.created")
+            .with_project(&inserted.project_id)
+            .with_resource("upload_preset", &inserted.id)
+            .with_metadata(json!({ "name": inserted.name, "folder": inserted.folder })),
+    )
+    .await?;
+
     Ok((
         StatusCode::CREATED,
         Json(json!({ "data": PresetView::from(inserted) })),
@@ -203,6 +214,14 @@ pub async fn update(
 
     active.updated_at = Set(Utc::now().into());
     let saved = active.update(&state.db).await?;
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "upload_preset.updated")
+            .with_project(&saved.project_id)
+            .with_resource("upload_preset", &saved.id)
+            .with_metadata(json!({ "name": saved.name, "folder": saved.folder })),
+    )
+    .await?;
     Ok(Json(json!({ "data": PresetView::from(saved) })).into_response())
 }
 
@@ -212,9 +231,19 @@ pub async fn delete(
     Path(id): Path<String>,
 ) -> ApiResult<Response> {
     let model = load_accessible(&state, &auth.claims.sub, &id, ProjectRole::Editor).await?;
+    let project_id = model.project_id.clone();
+    let preset_name = model.name.clone();
     upload_preset::Entity::delete_by_id(model.id)
         .exec(&state.db)
         .await?;
+    audit::record(
+        &state,
+        AuditEvent::user(&auth.claims, "upload_preset.deleted")
+            .with_project(&project_id)
+            .with_resource("upload_preset", &id)
+            .with_metadata(json!({ "name": preset_name })),
+    )
+    .await?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -374,6 +403,7 @@ fn validate_transformations(value: JsonValue) -> Result<JsonValue, ApiError> {
         ));
     }
     validate_transformations_json(&value).map_err(|e| ApiError::Validation(e.to_string()))?;
+    validate_video_transformations_json(&value).map_err(|e| ApiError::Validation(e.to_string()))?;
     Ok(value)
 }
 

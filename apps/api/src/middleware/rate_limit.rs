@@ -53,6 +53,9 @@ fn rate_limit_for_path(state: &AppState, path: &str) -> Option<(&'static str, us
         _ if path.starts_with("/uploads/") => {
             Some(("upload", state.config.upload_rate_limit_per_minute))
         }
+        _ if path.starts_with("/transform/") => {
+            Some(("transform", state.config.transform_rate_limit_per_minute))
+        }
         _ => None,
     }
 }

@@ -438,6 +438,13 @@ function PresetForm({
           value={value.transformations}
           onChange={(e) => set({ transformations: e.target.value })}
         />
+        <p className="text-xs text-default-500">
+          Supports image keys (`enabled`, `format`: original/jpeg/png/webp/avif,
+          `quality`, `resize`, `thumbnail`, `thumbnails` for extra sizes,
+          `watermark`, `url_transforms`, `preserve_original`) and video
+          thumbnails (`video.thumbnail` with `at_seconds`, `width`, `format`,
+          `quality`).
+        </p>
       </div>
 
       {error && <Alert message={error} />}

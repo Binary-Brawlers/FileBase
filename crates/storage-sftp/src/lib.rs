@@ -1,4 +1,4 @@
-use std::{io::Write, net::TcpStream, path::Path};
+use std::{io::Read, io::Write, net::TcpStream, path::Path};
 
 use async_trait::async_trait;
 use filebase_storage::{
@@ -112,6 +112,24 @@ impl StorageAdapter for SftpStorageAdapter {
             path: input.path,
             size,
         })
+    }
+
+    async fn download(&self, path: &str) -> StorageResult<Vec<u8>> {
+        let cfg = self.config.clone();
+        let path = path.to_string();
+        task::spawn_blocking(move || -> StorageResult<Vec<u8>> {
+            let (_session, sftp) = connect(&cfg)?;
+            let full = std::path::PathBuf::from(join_path(&cfg.base_path, &path));
+            let mut file = sftp
+                .open(&full)
+                .map_err(|e| StorageError::Backend(format!("sftp open {full:?}: {e}")))?;
+            let mut bytes = Vec::new();
+            file.read_to_end(&mut bytes)
+                .map_err(|e| StorageError::Io(format!("sftp read: {e}")))?;
+            Ok(bytes)
+        })
+        .await
+        .map_err(|e| StorageError::Backend(format!("sftp task join: {e}")))?
     }
 
     async fn delete(&self, path: &str) -> StorageResult<()> {

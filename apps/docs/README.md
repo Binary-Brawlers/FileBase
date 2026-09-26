@@ -20,3 +20,10 @@ User-facing documentation for FileBase. Until a docs site framework is selected,
 14. [Folders & Upload Logs](./content/guides/14-folders-and-upload-logs.md) — browse nested upload folders and investigate upload activity.
 15. [Analytics](./content/guides/15-analytics.md) — monitor upload volume, storage usage, content mix, and operational outcomes.
 16. [Team Access and Project Roles](./content/guides/16-team-access.md) — invite teammates and enforce project-scoped owner, admin, editor, and viewer permissions.
+17. [Media Processing](./content/guides/17-media-processing.md) — AVIF conversion, watermarking, and video metadata/thumbnails.
+18. [Audit Logs](./content/guides/18-audit-logs.md) — persistent administrator activity records, filtering, and retention.
+19. [Resumable Chunked Uploads](./content/guides/19-chunked-uploads.md) — resume large uploads with chunked transfers.
+20. [Operations](./content/guides/20-operations.md) — diagnostics, maintenance controls, failed jobs, and backup/restore.
+21. [Dynamic Image Transformations](./content/guides/21-dynamic-transforms.md) — transform images from URLs and generate extra thumbnail sizes.
+22. [CDN Integration](./content/guides/22-cdn.md) — serve files and variants through a CDN or custom host.
+23. [Upgrades](./content/guides/23-upgrades.md) — pre-flight checks, upgrade script, and rollback.

@@ -38,6 +38,7 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
         redis,
         config: Arc::new(config),
         rate_limiter: Arc::new(RateLimiter::default()),
+        started_at: std::time::Instant::now(),
     };
     let request_body_limit = usize::try_from(state.config.max_upload_size).unwrap_or(usize::MAX);
 
@@ -55,6 +56,12 @@ pub async fn build(config: Config) -> anyhow::Result<BuiltApp> {
             header::AUTHORIZATION,
             header::CONTENT_TYPE,
             REQUEST_ID_HEADER,
+        ])
+        .expose_headers([
+            header::ETAG,
+            header::CACHE_CONTROL,
+            axum::http::HeaderName::from_static("x-filebase-transform-cache"),
+            header::CONTENT_DISPOSITION,
         ])
         .allow_credentials(true);
 

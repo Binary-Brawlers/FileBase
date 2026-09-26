@@ -19,7 +19,7 @@ RUN cargo build --release -p filebase-api
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates curl libssl3 \
+ && apt-get install -y --no-install-recommends ca-certificates curl ffmpeg libssl3 \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 1001 --user-group filebase
 COPY --from=builder /app/target/release/filebase-api /usr/local/bin/filebase-api
