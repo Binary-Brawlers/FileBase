@@ -1,4 +1,4 @@
-//! Runs the shared storage contract against an S3-compatible server (MinIO in CI).
+//! Runs the shared storage contract against an S3-compatible server (moto in CI).
 //! Skipped unless `FILEBASE_TEST_S3_ENDPOINT` is set. The bucket must exist.
 
 use filebase_storage::contract::run_adapter_contract;
