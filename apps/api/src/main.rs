@@ -3,6 +3,8 @@ mod config;
 mod db;
 mod entities;
 mod error;
+#[cfg(test)]
+mod integration_tests;
 mod middleware;
 mod routes;
 mod services;

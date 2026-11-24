@@ -1110,3 +1110,159 @@ pub(crate) fn random_string(len: usize) -> String {
 pub(crate) fn new_id(prefix: &str) -> String {
     format!("{prefix}_{}", Uuid::new_v4().simple())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    const PNG_HEADER: &[u8] = &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+
+    #[test]
+    fn magic_mime_detects_common_signatures() {
+        assert_eq!(magic_mime(PNG_HEADER), Some("image/png"));
+        assert_eq!(magic_mime(&[0xff, 0xd8, 0xff, 0xe0]), Some("image/jpeg"));
+        assert_eq!(magic_mime(b"GIF89a...."), Some("image/gif"));
+        assert_eq!(magic_mime(b"%PDF-1.7"), Some("application/pdf"));
+        assert_eq!(magic_mime(b"RIFF\0\0\0\0WEBPVP8 "), Some("image/webp"));
+        assert_eq!(magic_mime(b"\0\0\0\x20ftypavif"), Some("image/avif"));
+        assert_eq!(magic_mime(b"\0\0\0\x20ftypisom"), Some("video/mp4"));
+        assert_eq!(magic_mime(b"\0\0\0\x14ftypqt  "), Some("video/quicktime"));
+        assert_eq!(magic_mime(&[0x1a, 0x45, 0xdf, 0xa3]), Some("video/webm"));
+        assert_eq!(magic_mime(b"plain text"), None);
+    }
+
+    #[test]
+    fn validate_mime_rejects_content_that_contradicts_declared_type() {
+        assert!(matches!(
+            validate_mime(&json!([]), Some("text/plain"), PNG_HEADER),
+            Err(ApiError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn validate_mime_trusts_signature_over_generic_declared_type() {
+        match validate_mime(
+            &json!(["image/png"]),
+            Some("application/octet-stream"),
+            PNG_HEADER,
+        ) {
+            Ok(mime) => assert_eq!(mime, "image/png"),
+            Err(error) => panic!("expected png to be allowed: {error}"),
+        }
+    }
+
+    #[test]
+    fn validate_mime_enforces_preset_allow_list_case_insensitively() {
+        match validate_mime(&json!(["TEXT/PLAIN"]), Some("Text/Plain"), b"hello") {
+            Ok(mime) => assert_eq!(mime, "text/plain"),
+            Err(error) => panic!("expected text/plain to be allowed: {error}"),
+        }
+        assert!(validate_mime(&json!(["image/png"]), Some("text/plain"), b"hello").is_err());
+        assert!(validate_mime(&json!([]), Some("text/plain"), b"hello").is_ok());
+    }
+
+    #[test]
+    fn validate_extension_accepts_dotted_and_bare_entries() {
+        assert!(validate_extension(&json!([".txt"]), "txt").is_ok());
+        assert!(validate_extension(&json!(["PNG"]), "png").is_ok());
+        assert!(validate_extension(&json!([]), "exe").is_ok());
+        assert!(validate_extension(&json!(["txt"]), "exe").is_err());
+    }
+
+    #[test]
+    fn preset_rules_must_be_string_arrays() {
+        assert!(string_array(&json!("txt")).is_err());
+        assert!(string_array(&json!([1, 2])).is_err());
+    }
+
+    #[test]
+    fn safe_original_name_strips_directories_and_rejects_dot_names() {
+        assert!(matches!(
+            safe_original_name("../../etc/passwd").as_deref(),
+            Ok("passwd")
+        ));
+        assert!(matches!(
+            safe_original_name("C:\\Users\\me\\photo.png").as_deref(),
+            Ok("photo.png")
+        ));
+        assert!(safe_original_name("..").is_err());
+        assert!(safe_original_name("dir/").is_err());
+        assert!(safe_original_name("   ").is_err());
+    }
+
+    #[test]
+    fn extension_must_be_simple_alphanumeric() {
+        assert!(matches!(
+            extension_from_name("Report.PDF").as_deref(),
+            Ok("pdf")
+        ));
+        assert!(extension_from_name("archive.tar.gz").is_ok());
+        assert!(extension_from_name("no_extension").is_err());
+        assert!(extension_from_name("trailing.").is_err());
+        assert!(extension_from_name("weird.ph p").is_err());
+    }
+
+    #[test]
+    fn saved_name_follows_the_preset_strategy() {
+        let hash = "abc123";
+        assert_eq!(
+            generate_saved_name("hash", "a.txt", "txt", hash),
+            "abc123.txt"
+        );
+
+        let uuid_name = generate_saved_name("uuid", "a.txt", "txt", hash);
+        assert_eq!(uuid_name.len(), 32 + ".txt".len());
+
+        let slug_name = generate_saved_name("slug_random", "My Holiday Photo.JPG", "jpg", hash);
+        assert!(slug_name.starts_with("my-holiday-photo-"));
+        assert!(slug_name.ends_with(".jpg"));
+
+        let random_name = generate_saved_name("random", "a.txt", "txt", hash);
+        assert_eq!(random_name.len(), 20 + ".txt".len());
+    }
+
+    #[test]
+    fn slugify_collapses_symbols_and_never_returns_empty() {
+        assert_eq!(slugify("Hello,  World!!"), "hello-world");
+        assert_eq!(slugify("***"), "file");
+    }
+
+    #[test]
+    fn join_relative_rejects_traversal_and_nested_filenames() {
+        assert!(matches!(
+            join_relative("/avatars/", "a.png").as_deref(),
+            Ok("avatars/a.png")
+        ));
+        assert!(join_relative("../secrets", "a.png").is_err());
+        assert!(join_relative("", "a.png").is_err());
+        assert!(join_relative("avatars", "x/a.png").is_err());
+        assert!(join_relative("avatars", "x\\a.png").is_err());
+    }
+
+    #[test]
+    fn api_key_header_takes_precedence_over_bearer_token() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer from-bearer"),
+        );
+        assert_eq!(
+            extract_bearer_or_key(&headers).as_deref(),
+            Some("from-bearer")
+        );
+        headers.insert("x-api-key", HeaderValue::from_static("from-header"));
+        assert_eq!(
+            extract_bearer_or_key(&headers).as_deref(),
+            Some("from-header")
+        );
+    }
+
+    #[test]
+    fn hash_secret_is_lowercase_sha256_hex() {
+        assert_eq!(
+            hash_secret("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+    }
+}

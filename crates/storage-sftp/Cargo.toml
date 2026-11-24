@@ -11,3 +11,6 @@ async-trait.workspace = true
 filebase-storage = { path = "../storage" }
 ssh2 = "0.9"
 tokio = { workspace = true, features = ["rt"] }
+
+[dev-dependencies]
+filebase-storage = { path = "../storage", features = ["contract-tests"] }

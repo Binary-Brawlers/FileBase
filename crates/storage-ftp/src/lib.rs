@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use filebase_storage::{
     join_path, join_url, StorageAdapter, StorageError, StorageResult, UploadInput, UploadResult,
 };
-use suppaftp::FtpStream;
+use suppaftp::{types::FileType, FtpStream};
 use tokio::task;
 
 #[derive(Clone)]
@@ -33,19 +33,40 @@ impl FtpStorageAdapter {
         stream
             .login(&self.config.username, &self.config.password)
             .map_err(|e| StorageError::Authentication(format!("ftp login: {e}")))?;
+        // FTP sessions start in ASCII mode, where servers may rewrite line
+        // endings (corrupting images) and refuse SIZE, which `exists` relies on.
+        stream
+            .transfer_type(FileType::Binary)
+            .map_err(|e| StorageError::Backend(format!("ftp binary mode: {e}")))?;
         Ok(stream)
     }
 }
 
+/// Creates every missing directory in `dir`, which may be absolute or relative
+/// to the login directory (matching how the upload path itself is resolved).
+/// Leaves the session in the login directory so relative paths still resolve.
 fn ensure_dirs(stream: &mut FtpStream, dir: &str) -> StorageResult<()> {
     if dir.is_empty() || dir == "/" {
         return Ok(());
     }
-    let mut cursor = String::new();
+    let home = stream
+        .pwd()
+        .map_err(|e| StorageError::Backend(format!("ftp pwd: {e}")))?;
+    let mut cursor = if dir.starts_with('/') {
+        String::from("/")
+    } else {
+        String::new()
+    };
     for part in dir.split('/').filter(|p| !p.is_empty()) {
-        cursor.push('/');
+        if !cursor.is_empty() && !cursor.ends_with('/') {
+            cursor.push('/');
+        }
         cursor.push_str(part);
-        if stream.cwd(&cursor).is_err() {
+        if stream.cwd(&cursor).is_ok() {
+            stream
+                .cwd(&home)
+                .map_err(|e| StorageError::Backend(format!("ftp cwd {home}: {e}")))?;
+        } else {
             stream
                 .mkdir(&cursor)
                 .map_err(|e| StorageError::Backend(format!("ftp mkdir {cursor}: {e}")))?;

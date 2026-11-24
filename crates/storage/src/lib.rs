@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 
+#[cfg(feature = "contract-tests")]
+pub mod contract;
+
 pub type StorageResult<T> = Result<T, StorageError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -55,5 +58,29 @@ pub fn join_path(base: &str, path: &str) -> String {
         path.to_string()
     } else {
         format!("{base}/{path}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn join_url_uses_exactly_one_slash() {
+        assert_eq!(
+            join_url("https://cdn.test/", "/a/b.png"),
+            "https://cdn.test/a/b.png"
+        );
+        assert_eq!(
+            join_url("https://cdn.test", "a.png"),
+            "https://cdn.test/a.png"
+        );
+    }
+
+    #[test]
+    fn join_path_handles_empty_and_slashed_bases() {
+        assert_eq!(join_path("/srv/uploads/", "/a.txt"), "/srv/uploads/a.txt");
+        assert_eq!(join_path("", "/a.txt"), "a.txt");
+        assert_eq!(join_path("prefix", "x/y.txt"), "prefix/x/y.txt");
     }
 }

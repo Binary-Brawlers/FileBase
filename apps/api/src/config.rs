@@ -182,3 +182,38 @@ fn required(key: &'static str) -> Result<String, ConfigError> {
 fn optional(key: &'static str) -> Option<String> {
     std::env::var(key).ok().filter(|v| !v.is_empty())
 }
+
+#[cfg(test)]
+impl Config {
+    /// Builds a configuration for tests without reading the process environment
+    /// (env vars are process-global, so reading them would race between tests).
+    /// Rate limits default to 1000/minute so only tests that lower them hit 429s.
+    pub fn for_tests(database_url: &str, local_storage_path: &str) -> Self {
+        Self {
+            bind_address: SocketAddr::from(([127, 0, 0, 1], 0)),
+            app_url: "http://api.test".into(),
+            dashboard_url: "http://dashboard.test".into(),
+            database_url: database_url.into(),
+            database_max_connections: 5,
+            database_min_connections: 0,
+            database_connect_timeout_seconds: 5,
+            redis_url: "redis://127.0.0.1:6379".into(),
+            jwt_secret: "test-jwt-secret".into(),
+            encryption_key: "test-encryption-key".into(),
+            storage_driver: StorageDriver::Local,
+            local_storage_path: local_storage_path.into(),
+            public_base_url: "http://files.test".into(),
+            max_upload_size: 10 * 1024 * 1024,
+            auth_rate_limit_per_minute: 1000,
+            upload_rate_limit_per_minute: 1000,
+            default_duplicate_strategy: DuplicateStrategy::ReturnExisting,
+            ffprobe_path: PathBuf::from("ffprobe"),
+            ffmpeg_path: PathBuf::from("ffmpeg"),
+            upload_chunk_size: 5 * 1024 * 1024,
+            cdn_base_url: None,
+            transform_cache_ttl_seconds: 60,
+            transform_max_dimension: 4096,
+            transform_rate_limit_per_minute: 1000,
+        }
+    }
+}

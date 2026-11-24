@@ -77,3 +77,81 @@ fn client_key(request: &Request<Body>) -> String {
         .unwrap_or("unknown")
         .to_string()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    fn test_state() -> AppState {
+        let mut config = Config::for_tests("postgres://unused", "/tmp/unused");
+        config.auth_rate_limit_per_minute = 5;
+        config.upload_rate_limit_per_minute = 50;
+        config.transform_rate_limit_per_minute = 500;
+        AppState::disconnected_for_tests(config)
+    }
+
+    #[test]
+    fn sensitive_paths_map_to_their_rate_limit_category() {
+        let state = test_state();
+        assert_eq!(
+            rate_limit_for_path(&state, "/auth/login"),
+            Some(("auth", 5))
+        );
+        assert_eq!(
+            rate_limit_for_path(&state, "/setup/initialize"),
+            Some(("auth", 5))
+        );
+        assert_eq!(
+            rate_limit_for_path(&state, "/team-invitations/accept"),
+            Some(("auth", 5))
+        );
+        assert_eq!(
+            rate_limit_for_path(&state, "/uploads"),
+            Some(("upload", 50))
+        );
+        assert_eq!(
+            rate_limit_for_path(&state, "/uploads/session_1/chunks"),
+            Some(("upload", 50))
+        );
+        assert_eq!(
+            rate_limit_for_path(&state, "/transform/thumb/file_1"),
+            Some(("transform", 500))
+        );
+    }
+
+    #[test]
+    fn other_paths_are_not_rate_limited() {
+        let state = test_state();
+        assert_eq!(rate_limit_for_path(&state, "/files"), None);
+        assert_eq!(rate_limit_for_path(&state, "/auth/me"), None);
+        assert_eq!(rate_limit_for_path(&state, "/health/live"), None);
+    }
+
+    fn request_with_headers(headers: &[(&str, &str)]) -> Request<Body> {
+        let mut builder = Request::builder().uri("/auth/login");
+        for (name, value) in headers {
+            builder = builder.header(*name, *value);
+        }
+        match builder.body(Body::empty()) {
+            Ok(request) => request,
+            Err(error) => panic!("request build failed: {error}"),
+        }
+    }
+
+    #[test]
+    fn client_key_prefers_first_forwarded_address() {
+        let request = request_with_headers(&[
+            ("x-forwarded-for", " 203.0.113.9 , 10.0.0.1"),
+            ("x-real-ip", "198.51.100.2"),
+        ]);
+        assert_eq!(client_key(&request), "203.0.113.9");
+    }
+
+    #[test]
+    fn client_key_falls_back_to_real_ip_then_unknown() {
+        let request = request_with_headers(&[("x-real-ip", "198.51.100.2")]);
+        assert_eq!(client_key(&request), "198.51.100.2");
+        assert_eq!(client_key(&request_with_headers(&[])), "unknown");
+    }
+}

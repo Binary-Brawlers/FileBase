@@ -27,3 +27,6 @@ yarn-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# TypeScript incremental build state
+*.tsbuildinfo
