@@ -38,3 +38,6 @@ filebase-storage-local = { path = "../../crates/storage-local" }
 filebase-storage-ftp = { path = "../../crates/storage-ftp" }
 filebase-storage-sftp = { path = "../../crates/storage-sftp" }
 filebase-storage-s3 = { path = "../../crates/storage-s3" }
+
+[dev-dependencies]
+tower = { workspace = true, features = ["util"] }

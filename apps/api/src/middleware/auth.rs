@@ -47,3 +47,40 @@ impl FromRequestParts<AppState> for AuthUser {
         Ok(AuthUser { claims })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
+
+    fn headers(name: header::HeaderName, value: &'static str) -> HeaderMap {
+        let mut map = HeaderMap::new();
+        map.insert(name, HeaderValue::from_static(value));
+        map
+    }
+
+    #[test]
+    fn reads_bearer_token_from_authorization_header() {
+        let map = headers(header::AUTHORIZATION, "Bearer abc.def.ghi");
+        assert_eq!(extract_token(&map).as_deref(), Some("abc.def.ghi"));
+    }
+
+    #[test]
+    fn reads_session_cookie_among_other_cookies() {
+        let map = headers(
+            header::COOKIE,
+            "theme=dark; filebase_session=tok123; other=1",
+        );
+        assert_eq!(extract_token(&map).as_deref(), Some("tok123"));
+    }
+
+    #[test]
+    fn ignores_non_bearer_schemes_and_missing_credentials() {
+        assert_eq!(
+            extract_token(&headers(header::AUTHORIZATION, "Basic dXNlcjpwYXNz")),
+            None
+        );
+        assert_eq!(extract_token(&headers(header::COOKIE, "theme=dark")), None);
+        assert_eq!(extract_token(&HeaderMap::new()), None);
+    }
+}

@@ -183,3 +183,40 @@ pub async fn prune_older_than(state: &AppState, days: i64) -> ApiResult<u64> {
         .await?;
     Ok(result.rows_affected)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::http::HeaderValue;
+
+    #[test]
+    fn client_context_uses_first_forwarded_ip_and_user_agent() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "x-forwarded-for",
+            HeaderValue::from_static("203.0.113.9, 10.0.0.1"),
+        );
+        headers.insert(
+            axum::http::header::USER_AGENT,
+            HeaderValue::from_static("curl/8"),
+        );
+        let context = client_context(&headers);
+        assert_eq!(context.ip_address.as_deref(), Some("203.0.113.9"));
+        assert_eq!(context.user_agent.as_deref(), Some("curl/8"));
+    }
+
+    #[test]
+    fn client_context_truncates_long_user_agents() {
+        let long_agent = "a".repeat(1000);
+        let mut headers = HeaderMap::new();
+        match HeaderValue::from_str(&long_agent) {
+            Ok(value) => {
+                headers.insert(axum::http::header::USER_AGENT, value);
+            }
+            Err(error) => panic!("header value failed: {error}"),
+        }
+        let context = client_context(&headers);
+        assert_eq!(context.user_agent.map(|agent| agent.len()), Some(400));
+        assert_eq!(context.ip_address, None);
+    }
+}

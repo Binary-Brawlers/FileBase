@@ -1,6 +1,6 @@
 use axum::{extract::State, http::HeaderMap, response::IntoResponse, Json};
 use chrono::Utc;
-use sea_orm::{ActiveModelTrait, EntityTrait, PaginatorTrait, Set};
+use sea_orm::{ActiveModelTrait, EntityTrait, PaginatorTrait, Set, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as Json_};
 use uuid::Uuid;
@@ -116,6 +116,11 @@ pub async fn initialize(
 
     let password_hash = password::hash(&payload.admin.password)?;
 
+    // All setup rows commit together: a validation failure part-way through
+    // (bad slug, storage, or preset) must not leave an admin user behind,
+    // because any existing user permanently locks `/setup/initialize`.
+    let transaction = state.db.begin().await?;
+
     user::ActiveModel {
         id: Set(user_id.clone()),
         name: Set(payload.admin.name.trim().to_string()),
@@ -124,7 +129,7 @@ pub async fn initialize(
         created_at: Set(now),
         updated_at: Set(now),
     }
-    .insert(&state.db)
+    .insert(&transaction)
     .await?;
 
     let slug = payload
@@ -145,7 +150,7 @@ pub async fn initialize(
         created_at: Set(now),
         updated_at: Set(now),
     }
-    .insert(&state.db)
+    .insert(&transaction)
     .await?;
 
     project_member::ActiveModel {
@@ -155,7 +160,7 @@ pub async fn initialize(
         created_at: Set(now),
         updated_at: Set(now),
     }
-    .insert(&state.db)
+    .insert(&transaction)
     .await?;
 
     let sc = build_storage(
@@ -165,10 +170,11 @@ pub async fn initialize(
         &state.config.encryption_key,
         now,
     )?;
-    sc.insert(&state.db).await?;
+    sc.insert(&transaction).await?;
 
     let preset_model = build_preset(payload.preset, &project_id, &preset_id, &storage_id, now)?;
-    preset_model.insert(&state.db).await?;
+    preset_model.insert(&transaction).await?;
+    transaction.commit().await?;
 
     let admin_email = payload.admin.email.trim().to_lowercase();
     audit::record(
@@ -375,4 +381,69 @@ fn slugify(input: &str) -> String {
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("-")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn admin(name: &str, email: &str, password: &str) -> AdminInput {
+        AdminInput {
+            name: name.into(),
+            email: email.into(),
+            password: password.into(),
+        }
+    }
+
+    #[test]
+    fn validate_admin_requires_name_email_and_long_password() {
+        assert!(validate_admin(&admin("Ada", "ada@example.test", "longenough")).is_ok());
+        assert!(validate_admin(&admin("  ", "ada@example.test", "longenough")).is_err());
+        assert!(validate_admin(&admin("Ada", "not-an-email", "longenough")).is_err());
+        assert!(validate_admin(&admin("Ada", "ada@example.test", "short")).is_err());
+    }
+
+    #[test]
+    fn slugify_produces_url_safe_slugs() {
+        assert_eq!(slugify("  My Cool Project! "), "my-cool-project");
+        assert_eq!(slugify("a--b__c"), "a-b-c");
+        assert_eq!(slugify("!!!"), "");
+    }
+
+    #[test]
+    fn build_preset_rejects_unknown_duplicate_strategy() {
+        let preset = PresetInput {
+            name: None,
+            folder: None,
+            allowed_mime_types: None,
+            allowed_extensions: None,
+            max_file_size: None,
+            duplicate_strategy: Some("keep_both".into()),
+            filename_strategy: None,
+            transformations: None,
+        };
+        let now = Utc::now().fixed_offset();
+        assert!(matches!(
+            build_preset(Some(preset), "prj_1", "ups_1", "stc_1", now),
+            Err(ApiError::Validation(_))
+        ));
+    }
+
+    #[test]
+    fn sftp_storage_requires_a_password_or_private_key() {
+        let storage = StorageInput::Sftp {
+            host: "sftp.example.test".into(),
+            port: None,
+            username: "uploader".into(),
+            password: None,
+            private_key: None,
+            base_path: "/uploads".into(),
+            public_base_url: "https://files.example.test".into(),
+        };
+        let now = Utc::now().fixed_offset();
+        assert!(matches!(
+            build_storage(&storage, "prj_1", "stc_1", "key", now),
+            Err(ApiError::Validation(_))
+        ));
+    }
 }

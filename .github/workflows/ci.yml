@@ -8,9 +8,46 @@ on:
 jobs:
   rust:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Each API integration test creates and drops its own database here.
+      FILEBASE_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # Storage adapter contract tests (crates/storage-*/tests/contract.rs).
+      FILEBASE_TEST_S3_ENDPOINT: http://localhost:9000
+      FILEBASE_TEST_S3_BUCKET: filebase-test
+      FILEBASE_TEST_FTP_HOST: 127.0.0.1
+      FILEBASE_TEST_FTP_PORT: "21"
+      FILEBASE_TEST_FTP_BASE_PATH: /
+      FILEBASE_TEST_SFTP_HOST: 127.0.0.1
+      FILEBASE_TEST_SFTP_PORT: "2222"
+      FILEBASE_TEST_SFTP_BASE_PATH: /upload
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      - name: Start storage servers for adapter tests
+        run: |
+          # moto is an S3-compatible server that accepts any credentials.
+          docker run -d --name s3 -p 9000:5000 motoserver/moto:latest
+          docker run -d --name ftp -p 21:21 -p 21000-21010:21000-21010 \
+            -e USERS="filebase|filebase" -e ADDRESS=127.0.0.1 \
+            delfer/alpine-ftp-server:latest
+          docker run -d --name sftp -p 2222:22 atmoz/sftp:alpine filebase:filebase:::upload
+          for attempt in $(seq 1 30); do
+            curl -fsS -o /dev/null http://localhost:9000/ && break
+            sleep 2
+          done
+          curl -fsS -X PUT http://localhost:9000/filebase-test
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
@@ -24,6 +61,7 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - run: pnpm test

@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "echo no tests yet"
+    "test": "tsc -p tsconfig.json && node --test test/shared.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.2"

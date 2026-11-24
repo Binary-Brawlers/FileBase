@@ -43,3 +43,62 @@ impl RateLimiter {
         true
     }
 }
+
+#[cfg(test)]
+impl AppState {
+    /// State with no database connection, for unit tests of pure request logic.
+    pub fn disconnected_for_tests(config: Config) -> Self {
+        let redis = match redis::Client::open(config.redis_url.as_str()) {
+            Ok(client) => client,
+            Err(error) => panic!("invalid test redis url: {error}"),
+        };
+        Self {
+            db: DatabaseConnection::Disconnected,
+            redis,
+            config: Arc::new(config),
+            rate_limiter: Arc::new(RateLimiter::default()),
+            started_at: Instant::now(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MINUTE: Duration = Duration::from_secs(60);
+
+    #[test]
+    fn allows_requests_up_to_the_limit_then_blocks() {
+        let limiter = RateLimiter::default();
+        assert!(limiter.allow("auth:1.2.3.4", 2, MINUTE));
+        assert!(limiter.allow("auth:1.2.3.4", 2, MINUTE));
+        assert!(!limiter.allow("auth:1.2.3.4", 2, MINUTE));
+    }
+
+    #[test]
+    fn keys_are_limited_independently() {
+        let limiter = RateLimiter::default();
+        assert!(limiter.allow("auth:a", 1, MINUTE));
+        assert!(!limiter.allow("auth:a", 1, MINUTE));
+        assert!(limiter.allow("auth:b", 1, MINUTE));
+    }
+
+    #[test]
+    fn zero_limit_means_unlimited() {
+        let limiter = RateLimiter::default();
+        for _ in 0..100 {
+            assert!(limiter.allow("upload:x", 0, MINUTE));
+        }
+    }
+
+    #[test]
+    fn requests_are_allowed_again_after_the_window_passes() {
+        let limiter = RateLimiter::default();
+        let window = Duration::from_millis(30);
+        assert!(limiter.allow("transform:x", 1, window));
+        assert!(!limiter.allow("transform:x", 1, window));
+        std::thread::sleep(Duration::from_millis(40));
+        assert!(limiter.allow("transform:x", 1, window));
+    }
+}

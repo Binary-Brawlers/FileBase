@@ -103,3 +103,47 @@ pub async fn accessible_project_ids(state: &AppState, user_id: &str) -> ApiResul
     ids.sort();
     Ok(ids)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn roles_round_trip_through_their_string_form() {
+        for role in [
+            ProjectRole::Viewer,
+            ProjectRole::Editor,
+            ProjectRole::Admin,
+            ProjectRole::Owner,
+        ] {
+            match ProjectRole::parse(role.as_str()) {
+                Ok(parsed) => assert_eq!(parsed, role),
+                Err(error) => panic!("parse failed for {}: {error}", role.as_str()),
+            }
+        }
+    }
+
+    #[test]
+    fn unknown_role_is_a_validation_error() {
+        assert!(matches!(
+            ProjectRole::parse("superuser"),
+            Err(ApiError::Validation(_))
+        ));
+        assert!(ProjectRole::parse("Admin").is_err());
+    }
+
+    #[test]
+    fn higher_roles_include_lower_role_permissions() {
+        assert!(ProjectRole::Owner.allows(ProjectRole::Admin));
+        assert!(ProjectRole::Admin.allows(ProjectRole::Editor));
+        assert!(ProjectRole::Editor.allows(ProjectRole::Viewer));
+        assert!(ProjectRole::Viewer.allows(ProjectRole::Viewer));
+    }
+
+    #[test]
+    fn lower_roles_do_not_gain_higher_role_permissions() {
+        assert!(!ProjectRole::Viewer.allows(ProjectRole::Editor));
+        assert!(!ProjectRole::Editor.allows(ProjectRole::Admin));
+        assert!(!ProjectRole::Admin.allows(ProjectRole::Owner));
+    }
+}

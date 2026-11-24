@@ -9,3 +9,8 @@ rust-version.workspace = true
 [dependencies]
 async-trait.workspace = true
 thiserror.workspace = true
+uuid = { workspace = true, optional = true }
+
+[features]
+# Exposes `contract::run_adapter_contract` for adapter crates' tests.
+contract-tests = ["dep:uuid"]
