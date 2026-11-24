@@ -88,12 +88,8 @@ pub async fn run_adapter_contract(
     }
 }
 
-/// A per-run path prefix (`contract-<pid>-<unix nanos>`) so concurrent runs
-/// from different processes or hosts against one server never share files.
+/// A random per-run path prefix (`contract-<uuid>`) so concurrent runs from
+/// different processes or hosts against one server never share files.
 pub fn unique_prefix() -> String {
-    let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
-        Ok(elapsed) => elapsed.as_nanos(),
-        Err(_) => 0,
-    };
-    format!("contract-{}-{nanos}", std::process::id())
+    format!("contract-{}", uuid::Uuid::new_v4().simple())
 }
