@@ -18,12 +18,16 @@ pub async fn run_adapter_contract(
         panic!("health_check failed: {error}");
     }
 
-    let path = format!("{prefix}/nested/dir/contract.txt");
+    let path = format!("{prefix}/nested/dir/contract.bin");
+    // NUL, 0xff and CR/LF catch backends that transcode bytes (e.g. FTP in
+    // ASCII mode rewriting line endings).
+    let original: &[u8] = b"first\r\nversion\n\x00\xff\x89PNG\r\n\x1a\n";
+    let replacement: &[u8] = b"2nd";
     let uploaded = match adapter
         .upload(UploadInput {
             path: path.clone(),
-            bytes: b"first version".to_vec(),
-            content_type: Some("text/plain".into()),
+            bytes: original.to_vec(),
+            content_type: Some("application/octet-stream".into()),
         })
         .await
     {
@@ -31,7 +35,7 @@ pub async fn run_adapter_contract(
         Err(error) => panic!("upload failed: {error}"),
     };
     assert_eq!(uploaded.path, path);
-    assert_eq!(uploaded.size, 13);
+    assert_eq!(uploaded.size, original.len() as u64);
     assert_eq!(uploaded.url, crate::join_url(public_base_url, &path));
 
     match adapter.public_url(&path).await {
@@ -43,14 +47,14 @@ pub async fn run_adapter_contract(
         Err(error) => panic!("exists failed: {error}"),
     }
     match adapter.download(&path).await {
-        Ok(bytes) => assert_eq!(bytes, b"first version"),
+        Ok(bytes) => assert_eq!(bytes, original, "bytes must round-trip unchanged"),
         Err(error) => panic!("download failed: {error}"),
     }
 
     if let Err(error) = adapter
         .upload(UploadInput {
             path: path.clone(),
-            bytes: b"second".to_vec(),
+            bytes: replacement.to_vec(),
             content_type: None,
         })
         .await
@@ -58,7 +62,10 @@ pub async fn run_adapter_contract(
         panic!("overwrite upload failed: {error}");
     }
     match adapter.download(&path).await {
-        Ok(bytes) => assert_eq!(bytes, b"second", "overwrite should replace content"),
+        Ok(bytes) => assert_eq!(
+            bytes, replacement,
+            "a shorter overwrite should fully replace the content"
+        ),
         Err(error) => panic!("download after overwrite failed: {error}"),
     }
 
@@ -79,4 +86,14 @@ pub async fn run_adapter_contract(
         Ok(exists) => assert!(!exists),
         Err(error) => panic!("exists for missing file failed: {error}"),
     }
+}
+
+/// A per-run path prefix (`contract-<pid>-<unix nanos>`) so concurrent runs
+/// from different processes or hosts against one server never share files.
+pub fn unique_prefix() -> String {
+    let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+        Ok(elapsed) => elapsed.as_nanos(),
+        Err(_) => 0,
+    };
+    format!("contract-{}-{nanos}", std::process::id())
 }

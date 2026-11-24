@@ -47,6 +47,6 @@ async fn sftp_adapter_satisfies_storage_contract() {
         base_path: env_or("FILEBASE_TEST_SFTP_BASE_PATH", "upload"),
         public_base_url: public_base_url.into(),
     });
-    let prefix = format!("contract-{}", std::process::id());
+    let prefix = filebase_storage::contract::unique_prefix();
     run_adapter_contract(&adapter, &prefix, public_base_url).await;
 }

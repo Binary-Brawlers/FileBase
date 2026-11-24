@@ -29,6 +29,14 @@ const PRESET: &str = "docs";
 
 struct TestApp {
     router: Router,
+    upload_dir: PathBuf,
+    // Declared after `router` so the app's pool is dropped first.
+    _database: TestDatabase,
+}
+
+/// Owns a per-test database and upload directory and removes both when
+/// dropped, so cleanup also runs when a test assertion or the app build panics.
+struct TestDatabase {
     admin_url: String,
     database_name: String,
     upload_dir: PathBuf,
@@ -58,16 +66,17 @@ async fn start_app(customize: impl FnOnce(&mut Config)) -> Option<TestApp> {
             return None;
         }
     };
-    let server_url = match admin_url.rsplit_once('/') {
-        Some((server, _database)) => server.to_string(),
-        None => panic!("FILEBASE_TEST_DATABASE_URL must end with /<database>"),
-    };
     let database_name = format!("filebase_test_{}", Uuid::new_v4().simple());
     run_admin_sql(&admin_url, &format!("CREATE DATABASE \"{database_name}\"")).await;
-
     let upload_dir = std::env::temp_dir().join(&database_name);
+    let database = TestDatabase {
+        admin_url: admin_url.clone(),
+        database_name: database_name.clone(),
+        upload_dir: upload_dir.clone(),
+    };
+
     let mut config = Config::for_tests(
-        &format!("{server_url}/{database_name}"),
+        &test_database_url(&admin_url, &database_name),
         &upload_dir.to_string_lossy(),
     );
     customize(&mut config);
@@ -77,10 +86,26 @@ async fn start_app(customize: impl FnOnce(&mut Config)) -> Option<TestApp> {
     };
     Some(TestApp {
         router: built.router,
-        admin_url,
-        database_name,
         upload_dir,
+        _database: database,
     })
+}
+
+/// Swaps the database name in a Postgres URL, keeping credentials, host and
+/// any query parameters (e.g. `?sslrootcert=/certs/root.crt`) intact.
+fn test_database_url(admin_url: &str, database: &str) -> String {
+    let (base, query) = match admin_url.split_once('?') {
+        Some((base, query)) => (base, Some(query)),
+        None => (admin_url, None),
+    };
+    let server = match base.rsplit_once('/') {
+        Some((server, _database)) if server.contains("://") => server,
+        _ => panic!("FILEBASE_TEST_DATABASE_URL must end with /<database>"),
+    };
+    match query {
+        Some(query) => format!("{server}/{database}?{query}"),
+        None => format!("{server}/{database}"),
+    }
 }
 
 async fn run_admin_sql(admin_url: &str, sql: &str) {
@@ -94,24 +119,47 @@ async fn run_admin_sql(admin_url: &str, sql: &str) {
     let _ = connection.close().await;
 }
 
-impl TestApp {
-    /// Drops the per-test database and upload directory.
-    async fn finish(self) {
-        let TestApp {
-            router,
-            admin_url,
-            database_name,
-            upload_dir,
-        } = self;
-        drop(router);
-        run_admin_sql(
-            &admin_url,
-            &format!("DROP DATABASE IF EXISTS \"{database_name}\" WITH (FORCE)"),
-        )
-        .await;
-        let _ = std::fs::remove_dir_all(upload_dir);
+impl Drop for TestDatabase {
+    fn drop(&mut self) {
+        // `Drop` cannot await, and the test's runtime may be unwinding, so the
+        // DROP runs on a short-lived thread with its own runtime. Errors are
+        // only logged: panicking here during an unwind would abort the run.
+        let admin_url = self.admin_url.clone();
+        let sql = format!(
+            "DROP DATABASE IF EXISTS \"{}\" WITH (FORCE)",
+            self.database_name
+        );
+        let cleanup = std::thread::spawn(move || {
+            let runtime = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(runtime) => runtime,
+                Err(error) => {
+                    eprintln!("test database cleanup: runtime failed: {error}");
+                    return;
+                }
+            };
+            runtime.block_on(async {
+                match Database::connect(&admin_url).await {
+                    Ok(connection) => {
+                        if let Err(error) = connection.execute_unprepared(&sql).await {
+                            eprintln!("test database cleanup failed ({sql}): {error}");
+                        }
+                        let _ = connection.close().await;
+                    }
+                    Err(error) => eprintln!("test database cleanup: connect failed: {error}"),
+                }
+            });
+        });
+        if cleanup.join().is_err() {
+            eprintln!("test database cleanup thread panicked");
+        }
+        let _ = std::fs::remove_dir_all(&self.upload_dir);
     }
+}
 
+impl TestApp {
     async fn send(&self, request: Request<Body>) -> Response {
         let response = match self.router.clone().oneshot(request).await {
             Ok(response) => response,
@@ -334,7 +382,6 @@ async fn setup_runs_once_and_then_locks() {
         )
         .await;
     assert_eq!(second.status, StatusCode::CONFLICT);
-    app.finish().await;
 }
 
 #[tokio::test]
@@ -369,7 +416,6 @@ async fn failed_setup_leaves_the_instance_uninitialized() {
         )
         .await;
     assert_eq!(retry.status, StatusCode::OK, "{}", retry.body);
-    app.finish().await;
 }
 
 #[tokio::test]
@@ -429,7 +475,6 @@ async fn login_session_and_logout() {
         )
         .await;
     assert!(logout.status.is_success(), "logout: {}", logout.status);
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -470,7 +515,6 @@ async fn direct_upload_stores_file_and_returns_existing_duplicate() {
         .await;
     assert_eq!(fetched.status, StatusCode::OK);
     assert_eq!(text(&fetched.body, "/data/original_name"), "notes.txt");
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -537,7 +581,6 @@ async fn uploads_are_validated_against_key_and_preset() {
             .status,
         StatusCode::UNAUTHORIZED
     );
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -577,7 +620,6 @@ async fn reject_duplicate_preset_returns_conflict() {
     assert_eq!(upload(b"unique body").await.status, StatusCode::CREATED);
     assert_eq!(upload(b"unique body").await.status, StatusCode::CONFLICT);
     assert_eq!(upload(b"different body").await.status, StatusCode::CREATED);
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -622,7 +664,6 @@ async fn signed_upload_session_is_single_use() {
 
     let reused = app.multipart(&uri, Some(&token), &[], file).await;
     assert_eq!(reused.status, StatusCode::CONFLICT);
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -676,7 +717,6 @@ async fn chunked_upload_assembles_chunks_in_order() {
         Ok(bytes) => assert_eq!(bytes, b"hello world"),
         Err(error) => panic!("assembled file missing on disk: {error}"),
     }
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -748,7 +788,6 @@ async fn viewer_role_can_read_but_not_administer_a_project() {
         "accepted invitation must not be reusable: {}",
         reused.status
     );
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -792,7 +831,6 @@ async fn storage_connection_responses_never_include_credentials() {
         assert!(!serialized.contains("super-secret-ftp-password"));
         assert!(!serialized.contains("encrypted_password"));
     }
-    seeded.app.finish().await;
 }
 
 #[tokio::test]
@@ -810,5 +848,19 @@ async fn login_is_rate_limited_per_client() {
     let limited = login(app, ADMIN_EMAIL, ADMIN_PASSWORD).await;
     assert_eq!(limited.status, StatusCode::TOO_MANY_REQUESTS);
     assert_eq!(text(&limited.body, "/error/code"), "rate_limited");
-    seeded.app.finish().await;
+}
+
+#[test]
+fn test_database_url_replaces_only_the_database_name() {
+    assert_eq!(
+        test_database_url("postgres://u:p@localhost:5432/postgres", "t1"),
+        "postgres://u:p@localhost:5432/t1"
+    );
+    assert_eq!(
+        test_database_url(
+            "postgres://u@db/postgres?sslmode=verify-full&sslrootcert=/certs/root.crt",
+            "t1"
+        ),
+        "postgres://u@db/t1?sslmode=verify-full&sslrootcert=/certs/root.crt"
+    );
 }
